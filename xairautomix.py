@@ -18,6 +18,7 @@
 #*******************************************************************************
 
 # Perform auto mixing based on measured signal levels for the Behringer X-AIR mixers.
+# protocol: https://wiki.munichmakerlab.de/images/1/17/UNOFFICIAL_X32_OSC_REMOTE_PROTOCOL_%281%29.pdf
 
 import sys
 sys.path.append('python-x32/src')
@@ -26,6 +27,7 @@ import threading
 import time
 import socket
 from pythonx32 import x32
+import struct
 
 found_addr = -1
 
@@ -50,21 +52,38 @@ def main():
   mixer = x32.BehringerX32(f"{addr_subnet}.{found_addr}", local_port, False, 10, found_port)
 
   bus_ch = 5; # define here the bus channel you want to control
-  channel = 1; # TEST
+  channel = 0; # TEST
   value = 0.5; # TEST
 
+  # TEST
   query_all_faders(mixer, bus_ch)
   print(fader_init_val)
   print(bus_init_val)
 
   # TEST
-  mixer.set_value(f'/ch/{channel:#02}/mix/fader', [value], False)
-  mixer.set_value(f'/ch/{channel:#02}/mix/{bus_ch:#02}/level', [value], False)
-  mixer.set_value(f'/ch/{channel:#02}/mix/pan', [value], False)
+  #mixer.set_value(f'/ch/{channel:#02}/mix/fader', [value], False)
+  #mixer.set_value(f'/ch/{channel:#02}/mix/{bus_ch:#02}/level', [value], False)
+  #mixer.set_value(f'/ch/{channel:#02}/mix/pan', [value], False)
 
-  query_all_faders(mixer, bus_ch)
-  print(fader_init_val)
-  print(bus_init_val)
+  #mixer.set_value(f'/meters', ['/meters/1'], False)
+  #mixer.set_value(f'/meters', ['/meters/2'], False)
+  #mixer.set_value(f'/meters', ['/meters/3'], False)
+  #mixer.set_value(f'/meters', ['/meters/4'], False)
+  #mixer.set_value(f'/meters', ['/meters/5', channel, 0], False)
+  mixer.set_value(f'/meters', ['/meters/6', channel], False)
+  #mixer.set_value(f'/meters', ['/meters/7'], False)
+  #mixer.set_value(f'/meters', ['/meters/8'], False)
+  print(mixer.get_msg_from_queue().address)
+  mixerdata = mixer.get_msg_from_queue().data
+  print(len(mixerdata[0]) / 4)
+  print(mixerdata)
+  for i in range(0, int(len(mixerdata[0]) / 4)):
+    print(struct.unpack('f', mixerdata[0][i * 4:i * 4 + 4]))
+
+  # TEST
+  #query_all_faders(mixer, bus_ch)
+  #print(fader_init_val)
+  #print(bus_init_val)
 
 
 def query_all_faders(mixer, bus_ch): # query all current fader values
