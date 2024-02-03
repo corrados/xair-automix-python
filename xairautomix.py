@@ -1,5 +1,5 @@
 
-# control a Behringer XAIR mixer with a nanoKONTROL connected to a Raspberry Pi
+# Perform auto mixing based on measured signal levels for the Behringer X-AIR mixers.
 import os
 import sys
 sys.path.append('python-x32/src')
