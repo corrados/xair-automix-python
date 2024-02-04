@@ -65,20 +65,21 @@ def main():
   #mixer.set_value(f'/ch/{channel:#02}/mix/{bus_ch:#02}/level', [value], False)
   #mixer.set_value(f'/ch/{channel:#02}/mix/pan', [value], False)
 
-  #mixer.set_value(f'/meters', ['/meters/1'], False)
-  #mixer.set_value(f'/meters', ['/meters/2'], False)
-  #mixer.set_value(f'/meters', ['/meters/3'], False)
-  #mixer.set_value(f'/meters', ['/meters/4'], False)
-  #mixer.set_value(f'/meters', ['/meters/5', channel, 0], False)
-  mixer.set_value(f'/meters', ['/meters/6', channel], False)
-  #mixer.set_value(f'/meters', ['/meters/7'], False)
-  #mixer.set_value(f'/meters', ['/meters/8'], False)
+  #mixer.set_value(f'/meters', ['/meters/1'], False)             # 21 vs 96
+  #mixer.set_value(f'/meters', ['/meters/2'], False)             # 19 vs 49
+  #mixer.set_value(f'/meters', ['/meters/3'], False)             # 29 vs 22
+  #mixer.set_value(f'/meters', ['/meters/4'], False)             # 51 vs 82
+  #mixer.set_value(f'/meters', ['/meters/5', channel, 0], False) # 23 vs 27
+  mixer.set_value(f'/meters', ['/meters/6', channel], False)     # 20.5 vs 4
+  #mixer.set_value(f'/meters', ['/meters/7'], False)             # 9 vs 16
+  #mixer.set_value(f'/meters', ['/meters/8'], False)             # 3 vs 6
   print(mixer.get_msg_from_queue().address)
   mixerdata = mixer.get_msg_from_queue().data
+  print(len(mixerdata))
   print(len(mixerdata[0]) / 4)
   print(mixerdata)
-  for i in range(0, int(len(mixerdata[0]) / 4)):
-    print(struct.unpack('f', mixerdata[0][i * 4:i * 4 + 4]))
+  #for i in range(0, int(len(mixerdata[0]) / 4)):
+  #  print(struct.unpack('f', mixerdata[0][i * 4:i * 4 + 4]))
 
   # TEST
   #query_all_faders(mixer, bus_ch)
