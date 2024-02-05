@@ -28,6 +28,7 @@ import time
 import socket
 from pythonx32 import x32
 import struct
+import matplotlib.pyplot as plt
 
 found_addr = -1
 
@@ -47,18 +48,18 @@ def main():
       if found_addr < 0:
         time.sleep(2) # time-out is 1 second -> wait two-times the time-out
 
-  print(addr_subnet)
-  print(found_addr)
+  #print(addr_subnet)
+  #print(found_addr)
   mixer = x32.BehringerX32(f"{addr_subnet}.{found_addr}", local_port, False, 10, found_port)
 
   bus_ch = 5; # define here the bus channel you want to control
-  channel = 0; # TEST
+  channel = 10; # TEST
   value = 0.5; # TEST
 
   # TEST
-  query_all_faders(mixer, bus_ch)
-  print(fader_init_val)
-  print(bus_init_val)
+  #query_all_faders(mixer, bus_ch)
+  #print(fader_init_val)
+  #print(bus_init_val)
 
   # TEST
   #mixer.set_value(f'/ch/{channel:#02}/mix/fader', [value], False)
@@ -68,18 +69,43 @@ def main():
   #mixer.set_value(f'/meters', ['/meters/1'], False)             # 21 vs 96
   #mixer.set_value(f'/meters', ['/meters/2'], False)             # 19 vs 49
   #mixer.set_value(f'/meters', ['/meters/3'], False)             # 29 vs 22
-  #mixer.set_value(f'/meters', ['/meters/4'], False)             # 51 vs 82
+  mixer.set_value(f'/meters', ['/meters/4'], False)             # 51 vs 82
   #mixer.set_value(f'/meters', ['/meters/5', channel, 0], False) # 23 vs 27
-  mixer.set_value(f'/meters', ['/meters/6', channel], False)     # 20.5 vs 4
+  #mixer.set_value(f'/meters', ['/meters/6', channel], False)    # 20.5 vs 4
   #mixer.set_value(f'/meters', ['/meters/7'], False)             # 9 vs 16
   #mixer.set_value(f'/meters', ['/meters/8'], False)             # 3 vs 6
-  print(mixer.get_msg_from_queue().address)
-  mixerdata = mixer.get_msg_from_queue().data
-  print(len(mixerdata))
-  print(len(mixerdata[0]) / 4)
-  print(mixerdata)
-  #for i in range(0, int(len(mixerdata[0]) / 4)):
-  #  print(struct.unpack('f', mixerdata[0][i * 4:i * 4 + 4]))
+
+  fig, ax = plt.subplots()
+  plt.ion()
+  for i in range(0, 10):
+    #print(mixer.get_msg_from_queue().address)
+    mixerdata = mixer.get_msg_from_queue().data
+    #print(len(mixerdata))
+    num_bytes = int(len(mixerdata[0]) / 4)
+    #print(num_bytes)
+    #print(mixerdata[0].hex())
+    #print(mixerdata[0][0])
+    #for cur_byte in mixerdata[0]:
+    #  print(cur_byte.hex())
+    offset = 0
+    values = [0] * (num_bytes - offset)
+    for i in range(0, num_bytes - offset):
+      values[i] = struct.unpack('f', mixerdata[0][offset + i * 4:offset + i * 4 + 4])[0]
+      #print(mixerdata[0][offset + i * 4:offset + i * 4 + 4].hex())
+      #print(values[i])
+    #print(values)
+
+    # TEST
+    #print('***')
+    #print(struct.unpack('>f', bytes.fromhex('00800080')))
+    ax.cla()
+    ax.plot(values)
+    #ax.bar(range(0, num_bytes - offset), values)
+    ax.grid(True)
+    ax.set_ylim(ymin=-1, ymax=1)
+    plt.show()
+    plt.pause(0.2)
+
 
   # TEST
   #query_all_faders(mixer, bus_ch)
