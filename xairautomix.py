@@ -75,11 +75,40 @@ def main():
   #mixer.set_value(f'/meters', ['/meters/7'], False)             # 9 vs 16
   #mixer.set_value(f'/meters', ['/meters/8'], False)             # 3 vs 6
 
+
   fig, ax = plt.subplots()
   plt.ion()
   for i in range(0, 10):
     #print(mixer.get_msg_from_queue().address)
     mixerdata = mixer.get_msg_from_queue().data
+    mixerdata1 = bytearray(mixer.get_msg_from_queue().data[0])
+
+    #print('{:08b}'.format(105))
+    #print(int('{:08b}'.format(105), 2))
+    #print('{:08b}'.format(105)[::-1])
+    #print(int('{:08b}'.format(105)[::-1], 2))
+
+    #cur_byte = 105
+    #cur_byte_bit_reversed = bit_reverse_cur_byte(cur_byte) # int('{:08b}'.format(cur_byte)[::-1], 2)
+    #print(cur_byte)
+    #print(cur_byte_bit_reversed)
+    #print(mixerdata1[0:4].hex())
+
+    #print(mixerdata1.hex())
+    #for cnt in range(0, len(mixerdata1)): # reverse bits in one byte
+    #  mixerdata1[cnt] = bit_reverse_cur_byte(mixerdata1[cnt])
+    #print(mixerdata1.hex())
+    #for cnt in range(0, int(len(mixerdata1) / 4)): # reverse 4 bytes
+    #  s = cnt * 4
+    #  tmp = mixerdata1[s]
+    #  mixerdata1[s] = mixerdata1[s + 3]
+    #  mixerdata1[s + 3] = tmp
+    #  tmp = mixerdata1[s + 1]
+    #  mixerdata1[s + 1] = mixerdata1[s + 2]
+    #  mixerdata1[s + 2] = tmp
+    #print(mixerdata1.hex())
+
+
     #print(len(mixerdata))
     num_bytes = int(len(mixerdata[0]) / 4)
     #print(num_bytes)
@@ -90,10 +119,20 @@ def main():
     offset = 0
     values = [0] * (num_bytes - offset)
     for i in range(0, num_bytes - offset):
-      values[i] = struct.unpack('f', mixerdata[0][offset + i * 4:offset + i * 4 + 4])[0]
-      #print(mixerdata[0][offset + i * 4:offset + i * 4 + 4].hex())
+      cur_bytes = mixerdata1[offset + i * 4:offset + i * 4 + 4]
+      #cur_bytes = mixerdata[0][offset + i * 4:offset + i * 4 + 4]
+      #cur_bytes = cur_bytes[::-1]
+      #cur_bytes = bytearray(b'\x3e\xed\xfa\x44')
+      #print(cur_bytes.hex())
+      # from OSC library: struct.unpack(">f", data[0:4])[0]
+      values[i] = struct.unpack('f', cur_bytes)[0]
       #print(values[i])
     #print(values)
+
+    ## TEST
+    #values = [0] * num_bytes
+    #for i in range(0, num_bytes):
+    #  values[i] = struct.unpack('f', mixerdata[0][i * 4:i * 4 + 4])[0]
 
     # TEST
     #print('***')
@@ -102,7 +141,7 @@ def main():
     ax.plot(values)
     #ax.bar(range(0, num_bytes - offset), values)
     ax.grid(True)
-    ax.set_ylim(ymin=-1, ymax=1)
+    #ax.set_ylim(ymin=-1, ymax=1)
     plt.show()
     plt.pause(0.2)
 
@@ -112,6 +151,9 @@ def main():
   #print(fader_init_val)
   #print(bus_init_val)
 
+
+def bit_reverse_cur_byte(data):
+  return int('{:08b}'.format(data)[::-1], 2)
 
 def query_all_faders(mixer, bus_ch): # query all current fader values
     global fader_init_val, bus_init_val
