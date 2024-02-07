@@ -26,6 +26,7 @@ sys.path.append('python-x32/src/pythonx32')
 import threading
 import time
 import socket
+import numpy as np
 from pythonx32 import x32
 import struct
 import matplotlib.pyplot as plt
@@ -94,7 +95,7 @@ def main():
     #print(cur_byte_bit_reversed)
     #print(mixerdata1[0:4].hex())
 
-    #print(mixerdata1.hex())
+    print(mixerdata1.hex())
     #for cnt in range(0, len(mixerdata1)): # reverse bits in one byte
     #  mixerdata1[cnt] = bit_reverse_cur_byte(mixerdata1[cnt])
     #print(mixerdata1.hex())
@@ -138,6 +139,7 @@ def main():
     #print('***')
     #print(struct.unpack('>f', bytes.fromhex('00800080')))
     ax.cla()
+    #ax.plot(10 * np.log10(-np.array(values)))
     ax.plot(values)
     #ax.bar(range(0, num_bytes - offset), values)
     ax.grid(True)
