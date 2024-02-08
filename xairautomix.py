@@ -20,21 +20,17 @@
 # Perform auto mixing based on measured signal levels for the Behringer X-AIR mixers.
 # protocol: https://wiki.munichmakerlab.de/images/1/17/UNOFFICIAL_X32_OSC_REMOTE_PROTOCOL_%281%29.pdf
 
-import sys
+import sys, threading, time, socket, struct
 sys.path.append('python-x32/src')
 sys.path.append('python-x32/src/pythonx32')
-import threading
-import time
-import socket
 import numpy as np
 from pythonx32 import x32
-import struct
 import matplotlib.pyplot as plt
 
 found_addr = -1
 
 def main():
-  global found_addr, found_port, fader_init_val, bus_init_val
+  global found_addr, found_port, fader_init_val, bus_init_val, mixer
 
   # search for a mixer and initialize the connection to the mixer
   local_port  = 10300
@@ -53,6 +49,9 @@ def main():
   #print(found_addr)
   mixer = x32.BehringerX32(f"{addr_subnet}.{found_addr}", local_port, False, 10, found_port)
 
+  # separate thread for sending meters queries every second
+  threading.Timer(0.0, send_meters_request_message).start()
+
   bus_ch = 5; # define here the bus channel you want to control
   channel = 10; # TEST
   value = 0.5; # TEST
@@ -68,7 +67,7 @@ def main():
   #mixer.set_value(f'/ch/{channel:#02}/mix/pan', [value], False)
 
   #mixer.set_value(f'/meters', ['/meters/1'], False)             # 21 vs 96
-  mixer.set_value(f'/meters', ['/meters/2'], False)             # 19 vs 49
+  #mixer.set_value(f'/meters', ['/meters/2'], False)             # 19 vs 49    -> all channels?
   #mixer.set_value(f'/meters', ['/meters/3'], False)             # 29 vs 22
   #mixer.set_value(f'/meters', ['/meters/4'], False)             # 51 vs 82    -> RTA?
   #mixer.set_value(f'/meters', ['/meters/5', channel, 0], False) # 23 vs 27
@@ -145,7 +144,7 @@ def main():
     ax.grid(True)
     ax.set_ylim(ymin=0, ymax=1)
     plt.show()
-    plt.pause(0.2)
+    plt.pause(0.02)
 
 
   # TEST
@@ -153,9 +152,29 @@ def main():
   #print(fader_init_val)
   #print(bus_init_val)
 
+  del mixer # to exit other thread
+
 
 def bit_reverse_cur_byte(data):
   return int('{:08b}'.format(data)[::-1], 2)
+
+
+
+def send_meters_request_message():
+  global mixer
+  try:
+    while True:
+      #mixer.set_value(f'/meters', ['/meters/1'], False)             # 21 vs 96
+      mixer.set_value(f'/meters', ['/meters/2'], False)             # 19 vs 49    -> all channels?
+      #mixer.set_value(f'/meters', ['/meters/3'], False)             # 29 vs 22
+      #mixer.set_value(f'/meters', ['/meters/4'], False)             # 51 vs 82    -> RTA?
+      #mixer.set_value(f'/meters', ['/meters/5', channel, 0], False) # 23 vs 27
+      #mixer.set_value(f'/meters', ['/meters/6', channel], False)    # 20.5 vs 4
+      #mixer.set_value(f'/meters', ['/meters/7'], False)             # 9 vs 16
+      #mixer.set_value(f'/meters', ['/meters/8'], False)             # 3 vs 6
+      time.sleep(1) # every second update meters request
+  except:
+    pass
 
 def query_all_faders(mixer, bus_ch): # query all current fader values
     global fader_init_val, bus_init_val
