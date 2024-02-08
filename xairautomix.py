@@ -28,6 +28,7 @@ from pythonx32 import x32
 import matplotlib.pyplot as plt
 
 found_addr = -1
+channel = 10; # TEST
 
 def main():
   global found_addr, found_port, fader_init_val, bus_init_val, mixer
@@ -45,119 +46,32 @@ def main():
       if found_addr < 0:
         time.sleep(2) # time-out is 1 second -> wait two-times the time-out
 
-  #print(addr_subnet)
-  #print(found_addr)
   mixer = x32.BehringerX32(f"{addr_subnet}.{found_addr}", local_port, False, 10, found_port)
 
   # separate thread for sending meters queries every second
   threading.Timer(0.0, send_meters_request_message).start()
 
-  bus_ch = 5; # define here the bus channel you want to control
-  channel = 10; # TEST
-  value = 0.5; # TEST
-
-  # TEST
-  #query_all_faders(mixer, bus_ch)
-  #print(fader_init_val)
-  #print(bus_init_val)
-
-  # TEST
-  #mixer.set_value(f'/ch/{channel:#02}/mix/fader', [value], False)
-  #mixer.set_value(f'/ch/{channel:#02}/mix/{bus_ch:#02}/level', [value], False)
-  #mixer.set_value(f'/ch/{channel:#02}/mix/pan', [value], False)
-
-  #mixer.set_value(f'/meters', ['/meters/1'], False)             # 21 vs 96
-  #mixer.set_value(f'/meters', ['/meters/2'], False)             # 19 vs 49    -> all channels?
-  #mixer.set_value(f'/meters', ['/meters/3'], False)             # 29 vs 22
-  #mixer.set_value(f'/meters', ['/meters/4'], False)             # 51 vs 82    -> RTA?
-  #mixer.set_value(f'/meters', ['/meters/5', channel, 0], False) # 23 vs 27
-  #mixer.set_value(f'/meters', ['/meters/6', channel], False)    # 20.5 vs 4
-  #mixer.set_value(f'/meters', ['/meters/7'], False)             # 9 vs 16
-  #mixer.set_value(f'/meters', ['/meters/8'], False)             # 3 vs 6
-
-
   fig, ax = plt.subplots()
   plt.ion()
   for i in range(0, 30):
-    #print(mixer.get_msg_from_queue().address)
     mixerdata = mixer.get_msg_from_queue().data
     mixerdata1 = bytearray(mixer.get_msg_from_queue().data[0])
 
-    #print('{:08b}'.format(105))
-    #print(int('{:08b}'.format(105), 2))
-    #print('{:08b}'.format(105)[::-1])
-    #print(int('{:08b}'.format(105)[::-1], 2))
-
-    #cur_byte = 105
-    #cur_byte_bit_reversed = bit_reverse_cur_byte(cur_byte) # int('{:08b}'.format(cur_byte)[::-1], 2)
-    #print(cur_byte)
-    #print(cur_byte_bit_reversed)
-    #print(mixerdata1[0:4].hex())
-
-    #print(mixerdata1.hex())
-    #for cnt in range(0, len(mixerdata1)): # reverse bits in one byte
-    #  mixerdata1[cnt] = bit_reverse_cur_byte(mixerdata1[cnt])
-    #print(mixerdata1.hex())
-    #for cnt in range(0, int(len(mixerdata1) / 4)): # reverse 4 bytes
-    #  s = cnt * 4
-    #  tmp = mixerdata1[s]
-    #  mixerdata1[s] = mixerdata1[s + 3]
-    #  mixerdata1[s + 3] = tmp
-    #  tmp = mixerdata1[s + 1]
-    #  mixerdata1[s + 1] = mixerdata1[s + 2]
-    #  mixerdata1[s + 2] = tmp
-    #print(mixerdata1.hex())
-
-
-    #print(len(mixerdata))
     num_bytes = int(len(mixerdata[0]) / 4)
-    #print(num_bytes)
-    #print(mixerdata[0].hex())
-    #print(mixerdata[0][0])
-    #for cur_byte in mixerdata[0]:
-    #  print(cur_byte.hex())
-    offset = 0
-    values = [0] * (num_bytes - offset)
-    for i in range(1, num_bytes - offset):
-      cur_bytes = mixerdata1[offset + i * 4:offset + i * 4 + 4]
-      #cur_bytes = mixerdata[0][offset + i * 4:offset + i * 4 + 4]
-      #cur_bytes = cur_bytes[::-1]
-      #cur_bytes = bytearray(b'\x3e\xed\xfa\x44')
-      #print(cur_bytes.hex())
-      # from OSC library: struct.unpack(">f", data[0:4])[0]
+    values = [0] * num_bytes
+    for i in range(1, num_bytes):
+      cur_bytes = mixerdata1[i * 4:i * 4 + 4]
       values[i] = struct.unpack('i', cur_bytes)[0] / 2147483647 + 1
-      #print(values[i])
-    #print(values)
 
-    ## TEST
-    #values = [0] * num_bytes
-    #for i in range(0, num_bytes):
-    #  values[i] = struct.unpack('f', mixerdata[0][i * 4:i * 4 + 4])[0]
-
-    # TEST
-    #print('***')
-    #print(struct.unpack('>f', bytes.fromhex('00800080')))
     ax.cla()
-    #ax.plot(10 * np.log10(-np.array(values)))
     #ax.plot(values)
-    ax.bar(range(0, num_bytes - offset), values)
+    ax.bar(range(0, num_bytes), values)
     ax.grid(True)
     ax.set_ylim(ymin=0, ymax=1)
     plt.show()
     plt.pause(0.02)
 
-
-  # TEST
-  #query_all_faders(mixer, bus_ch)
-  #print(fader_init_val)
-  #print(bus_init_val)
-
   del mixer # to exit other thread
-
-
-def bit_reverse_cur_byte(data):
-  return int('{:08b}'.format(data)[::-1], 2)
-
 
 
 def send_meters_request_message():
@@ -176,13 +90,6 @@ def send_meters_request_message():
   except:
     pass
 
-def query_all_faders(mixer, bus_ch): # query all current fader values
-    global fader_init_val, bus_init_val
-    fader_init_val = [0] * 9 # nanoKONTROL has 9 faders
-    bus_init_val   = [0] * 9
-    for i in range(8):
-      fader_init_val[i] = mixer.get_value(f'/ch/{i + 1:#02}/mix/fader')[0]
-      bus_init_val[i]   = mixer.get_value(f'/ch/{i + 1:#02}/mix/{bus_ch:#02}/level')[0]
 
 def try_to_ping_mixer(addr_subnet, start_port, i, j):
     global found_addr, found_port
@@ -195,6 +102,7 @@ def try_to_ping_mixer(addr_subnet, start_port, i, j):
       found_port = j
     except:
       search_mixer.__del__()
+
 
 # taken from stack overflow "Finding local IP addresses using Python's stdlib"
 def get_ip():
@@ -210,7 +118,7 @@ def get_ip():
       s.close()
     return IP
 
+
 if __name__ == '__main__':
   main()
-
 
