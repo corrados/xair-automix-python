@@ -68,9 +68,9 @@ def main():
   #mixer.set_value(f'/ch/{channel:#02}/mix/pan', [value], False)
 
   #mixer.set_value(f'/meters', ['/meters/1'], False)             # 21 vs 96
-  #mixer.set_value(f'/meters', ['/meters/2'], False)             # 19 vs 49
+  mixer.set_value(f'/meters', ['/meters/2'], False)             # 19 vs 49
   #mixer.set_value(f'/meters', ['/meters/3'], False)             # 29 vs 22
-  mixer.set_value(f'/meters', ['/meters/4'], False)             # 51 vs 82
+  #mixer.set_value(f'/meters', ['/meters/4'], False)             # 51 vs 82    -> RTA?
   #mixer.set_value(f'/meters', ['/meters/5', channel, 0], False) # 23 vs 27
   #mixer.set_value(f'/meters', ['/meters/6', channel], False)    # 20.5 vs 4
   #mixer.set_value(f'/meters', ['/meters/7'], False)             # 9 vs 16
@@ -79,7 +79,7 @@ def main():
 
   fig, ax = plt.subplots()
   plt.ion()
-  for i in range(0, 10):
+  for i in range(0, 30):
     #print(mixer.get_msg_from_queue().address)
     mixerdata = mixer.get_msg_from_queue().data
     mixerdata1 = bytearray(mixer.get_msg_from_queue().data[0])
@@ -95,7 +95,7 @@ def main():
     #print(cur_byte_bit_reversed)
     #print(mixerdata1[0:4].hex())
 
-    print(mixerdata1.hex())
+    #print(mixerdata1.hex())
     #for cnt in range(0, len(mixerdata1)): # reverse bits in one byte
     #  mixerdata1[cnt] = bit_reverse_cur_byte(mixerdata1[cnt])
     #print(mixerdata1.hex())
@@ -119,14 +119,14 @@ def main():
     #  print(cur_byte.hex())
     offset = 0
     values = [0] * (num_bytes - offset)
-    for i in range(0, num_bytes - offset):
+    for i in range(1, num_bytes - offset):
       cur_bytes = mixerdata1[offset + i * 4:offset + i * 4 + 4]
       #cur_bytes = mixerdata[0][offset + i * 4:offset + i * 4 + 4]
       #cur_bytes = cur_bytes[::-1]
       #cur_bytes = bytearray(b'\x3e\xed\xfa\x44')
       #print(cur_bytes.hex())
       # from OSC library: struct.unpack(">f", data[0:4])[0]
-      values[i] = struct.unpack('f', cur_bytes)[0]
+      values[i] = struct.unpack('i', cur_bytes)[0] / 2147483647 + 1
       #print(values[i])
     #print(values)
 
@@ -140,10 +140,10 @@ def main():
     #print(struct.unpack('>f', bytes.fromhex('00800080')))
     ax.cla()
     #ax.plot(10 * np.log10(-np.array(values)))
-    ax.plot(values)
-    #ax.bar(range(0, num_bytes - offset), values)
+    #ax.plot(values)
+    ax.bar(range(0, num_bytes - offset), values)
     ax.grid(True)
-    #ax.set_ylim(ymin=-1, ymax=1)
+    ax.set_ylim(ymin=0, ymax=1)
     plt.show()
     plt.pause(0.2)
 
