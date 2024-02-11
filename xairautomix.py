@@ -19,6 +19,7 @@
 
 # Perform auto mixing based on measured signal levels for the Behringer X-AIR mixers.
 # protocol: https://wiki.munichmakerlab.de/images/1/17/UNOFFICIAL_X32_OSC_REMOTE_PROTOCOL_%281%29.pdf
+# https://mediadl.musictribe.com/download/software/behringer/XAIR/X%20AIR%20Remote%20Control%20Protocol.pdf
 
 import sys, threading, time, socket, struct
 sys.path.append('python-x32/src')
@@ -26,6 +27,7 @@ sys.path.append('python-x32/src/pythonx32')
 import numpy as np
 from pythonx32 import x32
 import matplotlib.pyplot as plt
+import matplotlib.gridspec as gridspec
 
 found_addr = -1
 channel = 10; # TEST
@@ -46,30 +48,49 @@ def main():
       if found_addr < 0:
         time.sleep(2) # time-out is 1 second -> wait two-times the time-out
 
+  ## TEST
+  #found_port = 10023
+  #addr_subnet = '127.0.0'
+  #found_addr = '1'
+
   mixer = x32.BehringerX32(f"{addr_subnet}.{found_addr}", local_port, False, 10, found_port)
 
   # separate thread for sending meters queries every second
   threading.Timer(0.0, send_meters_request_message).start()
 
-  fig, ax = plt.subplots()
+  fig = plt.figure(tight_layout=True)
+  gs  = gridspec.GridSpec(2, 1)
+  ax0 = fig.add_subplot(gs[0, 0])
+  ax1 = fig.add_subplot(gs[1, 0])
   plt.ion()
+
   for i in range(0, 30):
-    mixerdata = mixer.get_msg_from_queue().data
-    mixerdata1 = bytearray(mixer.get_msg_from_queue().data[0])
+    cur_message = mixer.get_msg_from_queue()
+    mixer_cmd = cur_message.address
+    mixer_data = bytearray(cur_message.data[0])
 
-    num_bytes = int(len(mixerdata[0]) / 4)
-    values = [0] * num_bytes
-    for i in range(1, num_bytes):
-      cur_bytes = mixerdata1[i * 4:i * 4 + 4]
-      values[i] = struct.unpack('i', cur_bytes)[0] / 2147483647 + 1
+    num_bytes = len(mixer_data)
+    if num_bytes >= 4:
+      size = struct.unpack('i', mixer_data[0:4])[0]
+      values = [0] * size
+      for i in range(0, size):
+        cur_bytes = mixer_data[4 + i * 2:4 + i * 2 + 2]
+        values[i] = struct.unpack('h', cur_bytes)[0] / 256 # signed integer 16 bit, resolution 1/256 dB
 
-    ax.cla()
-    #ax.plot(values)
-    ax.bar(range(0, num_bytes), values)
-    ax.grid(True)
-    ax.set_ylim(ymin=0, ymax=1)
-    plt.show()
-    plt.pause(0.02)
+      if mixer_cmd == "/meters/2":
+        ax0.cla()
+        ax0.set_title("ALL INPUTS")
+        cur_ax = ax0
+      elif mixer_cmd == "/meters/4":
+        ax1.cla()
+        ax1.set_title("RTA100")
+        cur_ax = ax1
+      #cur_ax.plot(values)
+      cur_ax.bar(range(0, size), values)
+      cur_ax.grid(True)
+      #cur_ax.set_ylim(ymin=0, ymax=1)
+      plt.show()
+      plt.pause(0.01)
 
   del mixer # to exit other thread
 
@@ -78,14 +99,11 @@ def send_meters_request_message():
   global mixer
   try:
     while True:
-      #mixer.set_value(f'/meters', ['/meters/1'], False)             # 21 vs 96
-      mixer.set_value(f'/meters', ['/meters/2'], False)             # 19 vs 49    -> all channels?
-      #mixer.set_value(f'/meters', ['/meters/3'], False)             # 29 vs 22
-      #mixer.set_value(f'/meters', ['/meters/4'], False)             # 51 vs 82    -> RTA?
-      #mixer.set_value(f'/meters', ['/meters/5', channel, 0], False) # 23 vs 27
-      #mixer.set_value(f'/meters', ['/meters/6', channel], False)    # 20.5 vs 4
-      #mixer.set_value(f'/meters', ['/meters/7'], False)             # 9 vs 16
-      #mixer.set_value(f'/meters', ['/meters/8'], False)             # 3 vs 6
+      #mixer.set_value(f'/meters', ['/meters/0', channel], False) # 8 channel meters
+      #mixer.set_value(f'/meters', ['/meters/1'], False)          # ALL CHANNELS
+      mixer.set_value(f'/meters', ['/meters/2'], False)          # ALL INPUTS
+      mixer.set_value(f'/meters', ['/meters/4'], False)          # RTA100
+      #mixer.set_value(f'/meters', ['/meters/5'], False)          # ALL OUTPUTS
       time.sleep(1) # every second update meters request
   except:
     pass
