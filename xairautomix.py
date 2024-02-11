@@ -56,6 +56,8 @@ def main():
 
   mixer = x32.BehringerX32(f"{addr_subnet}.{found_addr}", local_port, False, 10, found_port)
 
+  #basic_setup_mixer(mixer)
+
   # separate thread for sending meters queries every second
   threading.Timer(0.0, send_meters_request_message).start()
 
@@ -101,6 +103,19 @@ def main():
   print(list(all_inputs_queue.queue))
 
   del mixer # to exit other thread
+
+
+def basic_setup_mixer(mixer):
+  vocal  = [9]
+  guitar = [11]
+  bass   = [10]
+  channel_dict = {2:["Stefan", vocal],   3:["Chris", vocal],    4:["Miguel", vocal], \
+                  5:["E-Git L", guitar], 6:["E-Git R", guitar], 7:["E-Git Mono", guitar], \
+                  8:["A-Git", guitar],   9:["Bass", bass]}
+  for ch in channel_dict:
+    inst_group = channel_dict[ch][1]
+    mixer.set_value(f"/ch/{ch + 1:#02}/config/color", [inst_group[0]], True)
+    mixer.set_value(f"/ch/{ch + 1:#02}/config/name", [channel_dict[ch][0]], True)
 
 
 def send_meters_request_message():
