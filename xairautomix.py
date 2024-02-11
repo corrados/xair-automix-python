@@ -21,7 +21,7 @@
 # protocol: https://wiki.munichmakerlab.de/images/1/17/UNOFFICIAL_X32_OSC_REMOTE_PROTOCOL_%281%29.pdf
 # https://mediadl.musictribe.com/download/software/behringer/XAIR/X%20AIR%20Remote%20Control%20Protocol.pdf
 
-import sys, threading, time, socket, struct
+import sys, threading, time, socket, struct, queue
 sys.path.append('python-x32/src')
 sys.path.append('python-x32/src/pythonx32')
 import numpy as np
@@ -31,6 +31,7 @@ import matplotlib.gridspec as gridspec
 
 found_addr = -1
 channel = 10; # TEST
+
 
 def main():
   global found_addr, found_port, fader_init_val, bus_init_val, mixer
@@ -63,8 +64,10 @@ def main():
   ax0 = fig.add_subplot(gs[0, 0])
   ax1 = fig.add_subplot(gs[1, 0])
   plt.ion()
+  all_inputs_queue = queue.Queue()
+  rta_queue        = queue.Queue()
 
-  for i in range(0, 30):
+  for i in range(0, 10):
     cur_message = mixer.get_msg_from_queue()
     mixer_cmd = cur_message.address
     mixer_data = bytearray(cur_message.data[0])
@@ -78,10 +81,12 @@ def main():
         values[i] = struct.unpack('h', cur_bytes)[0] / 256 # signed integer 16 bit, resolution 1/256 dB
 
       if mixer_cmd == "/meters/2":
+        all_inputs_queue.put(values)
         ax0.cla()
         ax0.set_title("ALL INPUTS")
         cur_ax = ax0
       elif mixer_cmd == "/meters/4":
+        rta_queue.put(values)
         ax1.cla()
         ax1.set_title("RTA100")
         cur_ax = ax1
@@ -91,6 +96,9 @@ def main():
       #cur_ax.set_ylim(ymin=0, ymax=1)
       plt.show()
       plt.pause(0.01)
+
+  # TEST
+  print(list(all_inputs_queue.queue))
 
   del mixer # to exit other thread
 
