@@ -106,26 +106,34 @@ def main():
 
 
 def basic_setup_mixer(mixer):
-  vocal  = [9]
-  guitar = [11]
-  bass   = [10]
-  edrums = [13]
-  drums  = [12]
-  channel_dict = { 1:["E-Git Mono", guitar], \
-                   2:["Stefan", vocal], 3:["Miguel", vocal],     4:["Chris", vocal], \
-                   5:["Bass", bass],    6:["E-Git L", guitar],   7:["E-Git R", guitar], \
-                   8:["A-Git", guitar], 9:["E-Drum L", edrums], 10:["E-Drum R", edrums], \
-                  11:["Kick", drums],  12:["Snare", drums],     13:["Tom1", drums], \
-                  14:["Tom2", drums],  15:["Overhead", drums]}
+  vocal   = [9]
+  guitar  = [11]
+  bass    = [10]
+  edrums  = [13]
+  drums   = [12]
+  special = [0]
+  channel_dict = { 0:["Click", special, ["NOMIX"]], 1:["E-Git Mono", guitar], \
+                   2:["Stefan", vocal],             3:["Miguel", vocal],           4:["Chris", vocal], \
+                   5:["Bass", bass],                6:["E-Git L", guitar],         7:["E-Git R", guitar], \
+                   8:["A-Git", guitar],             9:["Kick", drums, ["PHANT"]], 10:["Snare", drums], \
+                  11:["Tom1", drums],              12:["Tom2", drums],            13:["Overhead", drums, ["PHANT"]], \
+                  14:["E-Drum L", edrums],         15:["E-Drum R", edrums]}
   for ch in channel_dict:
     inst_group = channel_dict[ch][1]
     mixer.set_value(f"/ch/{ch + 1:#02}/config/color", [inst_group[0]], True)
     mixer.set_value(f"/ch/{ch + 1:#02}/config/name", [channel_dict[ch][0]], True)
-    #mixer.set_value(f"/ch/{ch + 1:#02}/mix/pan", [0], True) # TODO
+    if len(channel_dict[ch]) > 2: # special channel settings
+      if "NOMIX" in channel_dict[ch][2]:
+        mixer.set_value(f"/ch/{ch + 1:#02}/mix/st", [0], True)
+      if "PHANT" in channel_dict[ch][2]:
+        pass#mixer.set_value(f"/ch/{ch + 1:#02}/TODO", [0], True) # TODO find out command for phantom power
+
+    # TODO do a factory preset instead of resetting parameters manually
+    mixer.set_value(f"/ch/{ch + 1:#02}/mix/pan", [0.5], True) # middle position per default
 
   # stereo link E-Git and E-Drum
-  mixer.set_value(f"/config/chlink/7-8", [1], True) # stereo E-Git
-  # TODO /config/chlink/10--11 is not possible!
+  mixer.set_value(f"/config/chlink/7-8", [1], True)   # stereo E-Git
+  mixer.set_value(f"/config/chlink/15-16", [1], True) # stereo E-Drums
 
 def send_meters_request_message():
   global mixer
