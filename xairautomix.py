@@ -38,25 +38,25 @@ def main():
 
   # search for a mixer and initialize the connection to the mixer
   local_port  = 10300
-  addr_subnet = '.'.join(get_ip().split('.')[0:3]) # only use first three numbers of local IP address
-  while found_addr < 0:
-    for j in range(10024, 10022, -1): # X32:10023, XAIR:10024 -> check both
-      if found_addr < 0:
-        for i in range(2, 255):
-          threading.Thread(target = try_to_ping_mixer, args = (addr_subnet, local_port + 1, i, j, )).start()
-          if found_addr >= 0:
-            break
-      if found_addr < 0:
-        time.sleep(2) # time-out is 1 second -> wait two-times the time-out
+  #addr_subnet = '.'.join(get_ip().split('.')[0:3]) # only use first three numbers of local IP address
+  #while found_addr < 0:
+  #  for j in range(10024, 10022, -1): # X32:10023, XAIR:10024 -> check both
+  #    if found_addr < 0:
+  #      for i in range(2, 255):
+  #        threading.Thread(target = try_to_ping_mixer, args = (addr_subnet, local_port + 1, i, j, )).start()
+  #        if found_addr >= 0:
+  #          break
+  #    if found_addr < 0:
+  #      time.sleep(2) # time-out is 1 second -> wait two-times the time-out
 
-  ## TEST
-  #found_port = 10023
-  #addr_subnet = '127.0.0'
-  #found_addr = '1'
+  # TEST
+  found_port = 10023
+  addr_subnet = '127.0.0'
+  found_addr = '1'
 
   mixer = x32.BehringerX32(f"{addr_subnet}.{found_addr}", local_port, False, 10, found_port)
 
-  #basic_setup_mixer(mixer)
+  basic_setup_mixer(mixer)
 
   # separate thread for sending meters queries every second
   threading.Timer(0.0, send_meters_request_message).start()
@@ -109,14 +109,23 @@ def basic_setup_mixer(mixer):
   vocal  = [9]
   guitar = [11]
   bass   = [10]
-  channel_dict = {2:["Stefan", vocal],   3:["Chris", vocal],    4:["Miguel", vocal], \
-                  5:["E-Git L", guitar], 6:["E-Git R", guitar], 7:["E-Git Mono", guitar], \
-                  8:["A-Git", guitar],   9:["Bass", bass]}
+  edrums = [13]
+  drums  = [12]
+  channel_dict = { 1:["E-Git Mono", guitar], \
+                   2:["Stefan", vocal], 3:["Miguel", vocal],     4:["Chris", vocal], \
+                   5:["Bass", bass],    6:["E-Git L", guitar],   7:["E-Git R", guitar], \
+                   8:["A-Git", guitar], 9:["E-Drum L", edrums], 10:["E-Drum R", edrums], \
+                  11:["Kick", drums],  12:["Snare", drums],     13:["Tom1", drums], \
+                  14:["Tom2", drums],  15:["Overhead", drums]}
   for ch in channel_dict:
     inst_group = channel_dict[ch][1]
     mixer.set_value(f"/ch/{ch + 1:#02}/config/color", [inst_group[0]], True)
     mixer.set_value(f"/ch/{ch + 1:#02}/config/name", [channel_dict[ch][0]], True)
+    #mixer.set_value(f"/ch/{ch + 1:#02}/mix/pan", [0], True) # TODO
 
+  # stereo link E-Git and E-Drum
+  mixer.set_value(f"/config/chlink/7-8", [1], True) # stereo E-Git
+  # TODO /config/chlink/10--11 is not possible!
 
 def send_meters_request_message():
   global mixer
