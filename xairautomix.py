@@ -38,25 +38,25 @@ def main():
 
   # search for a mixer and initialize the connection to the mixer
   local_port  = 10300
-  #addr_subnet = '.'.join(get_ip().split('.')[0:3]) # only use first three numbers of local IP address
-  #while found_addr < 0:
-  #  for j in range(10024, 10022, -1): # X32:10023, XAIR:10024 -> check both
-  #    if found_addr < 0:
-  #      for i in range(2, 255):
-  #        threading.Thread(target = try_to_ping_mixer, args = (addr_subnet, local_port + 1, i, j, )).start()
-  #        if found_addr >= 0:
-  #          break
-  #    if found_addr < 0:
-  #      time.sleep(2) # time-out is 1 second -> wait two-times the time-out
+  addr_subnet = '.'.join(get_ip().split('.')[0:3]) # only use first three numbers of local IP address
+  while found_addr < 0:
+    for j in range(10024, 10022, -1): # X32:10023, XAIR:10024 -> check both
+      if found_addr < 0:
+        for i in range(2, 255):
+          threading.Thread(target = try_to_ping_mixer, args = (addr_subnet, local_port + 1, i, j, )).start()
+          if found_addr >= 0:
+            break
+      if found_addr < 0:
+        time.sleep(2) # time-out is 1 second -> wait two-times the time-out
 
-  # TEST
-  found_port = 10023
-  addr_subnet = '127.0.0'
-  found_addr = '1'
+  ## TEST
+  #found_port = 10023
+  #addr_subnet = '127.0.0'
+  #found_addr = '1'
 
   mixer = x32.BehringerX32(f"{addr_subnet}.{found_addr}", local_port, False, 10, found_port)
 
-  basic_setup_mixer(mixer)
+  #basic_setup_mixer(mixer)
 
   # separate thread for sending meters queries every second
   threading.Timer(0.0, send_meters_request_message).start()
@@ -69,7 +69,7 @@ def main():
   all_inputs_queue = queue.Queue()
   rta_queue        = queue.Queue()
 
-  for i in range(0, 10):
+  for i in range(0, 30):
     cur_message = mixer.get_msg_from_queue()
     mixer_cmd = cur_message.address
     mixer_data = bytearray(cur_message.data[0])
@@ -87,17 +87,21 @@ def main():
         ax0.cla()
         ax0.set_title("ALL INPUTS")
         cur_ax = ax0
+        bar_bottom = 127
+        bar_offset = 127
       elif mixer_cmd == "/meters/4":
         rta_queue.put(values)
         ax1.cla()
         ax1.set_title("RTA100")
         cur_ax = ax1
+        bar_bottom = 96
+        bar_offset = 96
       #cur_ax.plot(values)
-      cur_ax.bar(range(0, size), values)
+      cur_ax.bar(range(0, size), np.array(values) + bar_offset, bottom=-bar_bottom)
       cur_ax.grid(True)
       #cur_ax.set_ylim(ymin=0, ymax=1)
       plt.show()
-      plt.pause(0.01)
+      plt.pause(0.001)
 
   # TEST
   print(list(all_inputs_queue.queue))
