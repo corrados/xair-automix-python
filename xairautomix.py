@@ -56,7 +56,7 @@ def main():
 
   mixer = x32.BehringerX32(f"{addr_subnet}.{found_addr}", local_port, False, 10, found_port)
 
-  #basic_setup_mixer(mixer)
+  basic_setup_mixer(mixer)
 
   # separate thread for sending meters queries every second
   threading.Timer(0.0, send_meters_request_message).start()
@@ -87,8 +87,8 @@ def main():
         ax0.cla()
         ax0.set_title("ALL INPUTS")
         cur_ax = ax0
-        bar_bottom = 127
-        bar_offset = 127
+        bar_bottom = 96#127
+        bar_offset = 96#127
       elif mixer_cmd == "/meters/4":
         rta_queue.put(values)
         ax1.cla()
@@ -96,12 +96,12 @@ def main():
         cur_ax = ax1
         bar_bottom = 96
         bar_offset = 96
-      #cur_ax.plot(values)
-      cur_ax.bar(range(0, size), np.array(values) + bar_offset, bottom=-bar_bottom)
+      cur_ax.plot(values)
+      #cur_ax.bar(range(0, size), np.array(values) + bar_offset, bottom=-bar_bottom)
       cur_ax.grid(True)
-      #cur_ax.set_ylim(ymin=0, ymax=1)
+      cur_ax.set_ylim(ymin=-bar_bottom, ymax=0)
       plt.show()
-      plt.pause(0.001)
+      plt.pause(0.01)
 
   # TEST
   print(list(all_inputs_queue.queue))
@@ -110,30 +110,41 @@ def main():
 
 
 def basic_setup_mixer(mixer):
-  vocal   = [9]
-  guitar  = [11]
-  bass    = [10]
-  edrums  = [13]
-  drums   = [12]
+  vocal   = [9 - 8]
+  guitar  = [11 - 8]
+  bass    = [10 - 8]
+  edrums  = [13 - 8]
+  drums   = [12 - 8]
   special = [0]
-  channel_dict = { 0:["Click", special, ["NOMIX"]], 1:["E-Git Mono", guitar], \
-                   2:["Stefan", vocal],             3:["Miguel", vocal],           4:["Chris", vocal], \
-                   5:["Bass", bass],                6:["E-Git L", guitar],         7:["E-Git R", guitar], \
-                   8:["A-Git", guitar],             9:["Kick", drums, ["PHANT"]], 10:["Snare", drums], \
-                  11:["Tom1", drums],              12:["Tom2", drums],            13:["Overhead", drums, ["PHANT"]], \
-                  14:["E-Drum L", edrums],         15:["E-Drum R", edrums]}
+  channel_dict = { 0:["Click",      0, special, ["NOMIX"]], \
+                   1:["E-Git Mono", 0, guitar], \
+                   2:["Stefan",     0, vocal], \
+                   3:["Miguel",     0, vocal], \
+                   4:["Chris",      0, vocal], \
+                   5:["Bass",       0, bass], \
+                   6:["E-Git L",    0, guitar], \
+                   7:["E-Git R",    0, guitar], \
+                   8:["A-Git",      0, guitar], \
+                   9:["Kick",       0, drums, ["PHANT"]], \
+                  10:["Snare",      0, drums], \
+                  11:["Tom1",       0, drums], \
+                  12:["Tom2",       0, drums], \
+                  13:["Overhead",   0, drums, ["PHANT"]], \
+                  14:["E-Drum L",   0, edrums], \
+                  15:["E-Drum R",   0, edrums]}
   for ch in channel_dict:
-    inst_group = channel_dict[ch][1]
+    inst_group = channel_dict[ch][2]
     mixer.set_value(f"/ch/{ch + 1:#02}/config/color", [inst_group[0]], True)
     mixer.set_value(f"/ch/{ch + 1:#02}/config/name", [channel_dict[ch][0]], True)
-    if len(channel_dict[ch]) > 2: # special channel settings
-      if "NOMIX" in channel_dict[ch][2]:
-        mixer.set_value(f"/ch/{ch + 1:#02}/mix/st", [0], True)
-      if "PHANT" in channel_dict[ch][2]:
-        pass#mixer.set_value(f"/ch/{ch + 1:#02}/TODO", [0], True) # TODO find out command for phantom power
-
-    # TODO do a factory preset instead of resetting parameters manually
-    mixer.set_value(f"/ch/{ch + 1:#02}/mix/pan", [0.5], True) # middle position per default
+    mixer.set_value(f"/headamp/{ch + 1:#02}/gain", [set_gain(channel_dict[ch][1])], False) # TODO why is True not working
+    mixer.set_value(f"/ch/{ch + 1:#02}/mix/lr", [1], True)       # default: send to LR master
+    mixer.set_value(f"/headamp/{ch + 1:#02}/phantom", [0], True) # default: no phantom power
+    mixer.set_value(f"/ch/{ch + 1:#02}/mix/pan", [0.5], True)    # default: middle position per default
+    if len(channel_dict[ch]) > 3: # special channel settings
+      if "NOMIX" in channel_dict[ch][3]:
+        mixer.set_value(f"/ch/{ch + 1:#02}/mix/lr", [0], True)
+      if "PHANT" in channel_dict[ch][3]:
+        mixer.set_value(f"/headamp/{ch + 1:#02}/phantom", [1], True)
 
   # stereo link E-Git and E-Drum
   mixer.set_value(f"/config/chlink/7-8", [1], True)   # stereo E-Git
@@ -152,6 +163,8 @@ def send_meters_request_message():
   except:
     pass
 
+def set_gain(x):
+  return (x + 12) / (60 - (-12))
 
 def try_to_ping_mixer(addr_subnet, start_port, i, j):
     global found_addr, found_port
