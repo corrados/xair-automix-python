@@ -30,7 +30,7 @@ import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 
 found_addr = -1
-channel = 10; # TEST
+channel = 12; # TEST
 len_meter2 = 36  # ALL INPUTS (16 mic, 2 aux, 18 usb = 36 values)
 len_meter4 = 100 # RTA100 (100 bins RTA = 100 values)
 
@@ -61,6 +61,11 @@ def main():
   fig, line0, line1 = setup_plot()
   all_inputs_queue  = queue.Queue()
   rta_queue         = queue.Queue()
+
+  # TEST configure RTA
+  mixer.set_value("/-prefs/rta/decay", [2 / 16], False) # TODO readback does not work because of rounding effects
+  mixer.set_value("/-prefs/rta/det", [0], True) # 0: peak, 1: RMS
+  mixer.set_value("/-stat/rta/source", [channel], True) # note: zero-based channel number
 
   for i in range(0, 30):
     cur_message = mixer.get_msg_from_queue()
@@ -126,8 +131,8 @@ def basic_setup_mixer(mixer):
         mixer.set_value(f"/headamp/{ch + 1:#02}/phantom", [1], True)
 
   # stereo link E-Git and E-Drum
-  mixer.set_value(f"/config/chlink/7-8", [1], True)   # stereo E-Git
-  mixer.set_value(f"/config/chlink/15-16", [1], True) # stereo E-Drums
+  mixer.set_value("/config/chlink/7-8", [1], True)   # stereo E-Git
+  mixer.set_value("/config/chlink/15-16", [1], True) # stereo E-Drums
 
 def send_meters_request_message():
   global mixer
@@ -145,9 +150,9 @@ def send_meters_request_message():
 
 def set_gain(ch, x):
   if ch < 8: # TODO this is only for XAIR16
-    mixer.set_value(f"/headamp/{ch + 1:#02}/gain", [(x + 12) / (60 - (-12))], False) # TODO why is True not working
+    mixer.set_value(f"/headamp/{ch + 1:#02}/gain", [(x + 12) / (60 - (-12))], False) # TODO readback does not work because of rounding effects
   else:
-    mixer.set_value(f"/headamp/{ch + 9:#02}/gain", [(x + 12) / (20 - (-12))], False) # TODO why is True not working
+    mixer.set_value(f"/headamp/{ch + 9:#02}/gain", [(x + 12) / (20 - (-12))], False) # TODO readback does not work because of rounding effects
 
 
 def update_plot(fig, line, values):
