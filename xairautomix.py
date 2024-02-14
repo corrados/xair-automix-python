@@ -33,6 +33,7 @@ found_addr = -1
 channel = 12; # TEST
 len_meter2 = 36  # ALL INPUTS (16 mic, 2 aux, 18 usb = 36 values)
 len_meter4 = 100 # RTA100 (100 bins RTA = 100 values)
+file_path = "test.dat"
 
 
 def main():
@@ -63,9 +64,10 @@ def main():
   rta_queue         = queue.Queue()
 
   # TEST configure RTA
-  mixer.set_value("/-prefs/rta/decay", [2 / 16], False) # TODO readback does not work because of rounding effects
+  mixer.set_value("/-prefs/rta/decay", [0], True) # fastest possible decay
   mixer.set_value("/-prefs/rta/det", [0], True) # 0: peak, 1: RMS
-  mixer.set_value("/-stat/rta/source", [channel], True) # note: zero-based channel number
+  #mixer.set_value("/-stat/rta/source", [channel], True) # note: zero-based channel number
+  mixer.set_value("/-stat/rta/source", [31], True) # 31: MainLR on XAIR16
 
   for i in range(0, 30):
     cur_message = mixer.get_msg_from_queue()
@@ -87,8 +89,10 @@ def main():
         rta_queue.put(values)
         update_plot(fig, line1, values)
 
-  # TEST
-  #print(list(all_inputs_queue.queue))
+  ## Octave: h=fopen('test.dat','rb');x=fread(h,Inf,'single');fclose(h);x=reshape(x,36,[]);close all;plot(x([13,14],:).')
+  #with open(file_path, "ab") as file:
+  #  for data in list(all_inputs_queue.queue):
+  #    file.write(struct.pack('%sf' % len(data), *data))
 
   del mixer # to exit other thread
 
@@ -140,8 +144,8 @@ def send_meters_request_message():
     while True:
       #mixer.set_value(f'/meters', ['/meters/0', channel], False) # 8 channel meters
       #mixer.set_value(f'/meters', ['/meters/1'], False)          # ALL CHANNELS
-      mixer.set_value(f'/meters', ['/meters/2'], False)          # ALL INPUTS
-      mixer.set_value(f'/meters', ['/meters/4'], False)          # RTA100
+      mixer.set_value(f'/meters', ['/meters/2'], False)           # ALL INPUTS
+      mixer.set_value(f'/meters', ['/meters/4'], False)           # RTA100
       #mixer.set_value(f'/meters', ['/meters/5'], False)          # ALL OUTPUTS
       time.sleep(1) # every second update meters request
   except:
