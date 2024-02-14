@@ -115,7 +115,7 @@ def basic_setup_mixer(mixer):
     inst_group = channel_dict[ch][2]
     mixer.set_value(f"/ch/{ch + 1:#02}/config/color", [inst_group[0]], True)
     mixer.set_value(f"/ch/{ch + 1:#02}/config/name", [channel_dict[ch][0]], True)
-    mixer.set_value(f"/headamp/{ch + 1:#02}/gain", [set_gain(channel_dict[ch][1])], False) # TODO why is True not working
+    set_gain(ch, channel_dict[ch][1])
     mixer.set_value(f"/ch/{ch + 1:#02}/mix/lr", [1], True)       # default: send to LR master
     mixer.set_value(f"/headamp/{ch + 1:#02}/phantom", [0], True) # default: no phantom power
     mixer.set_value(f"/ch/{ch + 1:#02}/mix/pan", [0.5], True)    # default: middle position per default
@@ -143,8 +143,11 @@ def send_meters_request_message():
     pass
 
 
-def set_gain(x):
-  return (x + 12) / (60 - (-12))
+def set_gain(ch, x):
+  if ch < 8: # TODO this is only for XAIR16
+    mixer.set_value(f"/headamp/{ch + 1:#02}/gain", [(x + 12) / (60 - (-12))], False) # TODO why is True not working
+  else:
+    mixer.set_value(f"/headamp/{ch + 9:#02}/gain", [(x + 12) / (20 - (-12))], False) # TODO why is True not working
 
 
 def update_plot(fig, line, values):
