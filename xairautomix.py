@@ -31,6 +31,8 @@ import matplotlib.gridspec as gridspec
 
 found_addr = -1
 channel = 10; # TEST
+len_meter2 = 36  # ALL INPUTS (16 mic, 2 aux, 18 usb = 36 values)
+len_meter4 = 100 # RTA100 (100 bins RTA = 100 values)
 
 
 def main():
@@ -49,11 +51,6 @@ def main():
       if found_addr < 0:
         time.sleep(2) # time-out is 1 second -> wait two-times the time-out
 
-  ## TEST
-  #found_port = 10023
-  #addr_subnet = '127.0.0'
-  #found_addr = '1'
-
   mixer = x32.BehringerX32(f"{addr_subnet}.{found_addr}", local_port, False, 10, found_port)
 
   basic_setup_mixer(mixer)
@@ -61,13 +58,9 @@ def main():
   # separate thread for sending meters queries every second
   threading.Timer(0.0, send_meters_request_message).start()
 
-  fig = plt.figure(tight_layout=True)
-  gs  = gridspec.GridSpec(2, 1)
-  ax0 = fig.add_subplot(gs[0, 0])
-  ax1 = fig.add_subplot(gs[1, 0])
-  plt.ion()
-  all_inputs_queue = queue.Queue()
-  rta_queue        = queue.Queue()
+  fig, line0, line1 = setup_plot()
+  all_inputs_queue  = queue.Queue()
+  rta_queue         = queue.Queue()
 
   for i in range(0, 30):
     cur_message = mixer.get_msg_from_queue()
@@ -84,27 +77,13 @@ def main():
 
       if mixer_cmd == "/meters/2":
         all_inputs_queue.put(values)
-        ax0.cla()
-        ax0.set_title("ALL INPUTS")
-        cur_ax = ax0
-        bar_bottom = 96#127
-        bar_offset = 96#127
+        update_plot(fig, line0, values)
       elif mixer_cmd == "/meters/4":
         rta_queue.put(values)
-        ax1.cla()
-        ax1.set_title("RTA100")
-        cur_ax = ax1
-        bar_bottom = 96
-        bar_offset = 96
-      cur_ax.plot(values)
-      #cur_ax.bar(range(0, size), np.array(values) + bar_offset, bottom=-bar_bottom)
-      cur_ax.grid(True)
-      cur_ax.set_ylim(ymin=-bar_bottom, ymax=0)
-      plt.show()
-      plt.pause(0.01)
+        update_plot(fig, line1, values)
 
   # TEST
-  print(list(all_inputs_queue.queue))
+  #print(list(all_inputs_queue.queue))
 
   del mixer # to exit other thread
 
@@ -163,8 +142,35 @@ def send_meters_request_message():
   except:
     pass
 
+
 def set_gain(x):
   return (x + 12) / (60 - (-12))
+
+
+def update_plot(fig, line, values):
+  line.set_ydata(values)
+  #bar_container.datavalues = np.array(values) + 96
+  fig.canvas.draw()
+  fig.canvas.flush_events()
+
+
+def setup_plot():
+  plt.ion()
+  fig = plt.figure(tight_layout=True)
+  gs  = gridspec.GridSpec(2, 1)
+  ax0 = fig.add_subplot(gs[0, 0])
+  ax1 = fig.add_subplot(gs[1, 0])
+  ax0.set_title("ALL INPUTS")
+  ax1.set_title("RTA100")
+  ax0.grid(True)
+  ax1.grid(True)
+  line0, = ax0.plot(range(0, len_meter2), [0] * len_meter2, marker='.')
+  line1, = ax1.plot(range(0, len_meter4), [0] * len_meter4, marker='.')
+  #bar_container = ax1.bar(range(0, len_meter4), [96] * len_meter4, bottom=-96)
+  ax0.set_ylim(ymin=-127, ymax=0)
+  ax1.set_ylim(ymin=-127, ymax=0)
+  return fig, line0, line1
+
 
 def try_to_ping_mixer(addr_subnet, start_port, i, j):
     global found_addr, found_port
