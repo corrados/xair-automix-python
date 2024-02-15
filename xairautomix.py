@@ -34,6 +34,7 @@ channel = 12; # TEST
 len_meter2 = 36  # ALL INPUTS (16 mic, 2 aux, 18 usb = 36 values)
 len_meter4 = 100 # RTA100 (100 bins RTA = 100 values)
 file_path = "test.dat"
+do_plots = True
 
 
 def main():
@@ -54,20 +55,23 @@ def main():
 
   mixer = x32.BehringerX32(f"{addr_subnet}.{found_addr}", local_port, False, 10, found_port)
 
-  basic_setup_mixer(mixer)
+  #basic_setup_mixer(mixer)
 
   # separate thread for sending meters queries every second
   threading.Timer(0.0, send_meters_request_message).start()
 
-  fig, line0, line1 = setup_plot()
-  all_inputs_queue  = queue.Queue()
-  rta_queue         = queue.Queue()
+  if do_plots:
+    fig, line0, line1 = setup_plot()
+
+  all_raw_inputs_queue = queue.Queue()
+  all_inputs_queue     = queue.Queue()
+  rta_queue            = queue.Queue()
 
   # TEST configure RTA
   mixer.set_value("/-prefs/rta/decay", [0], True) # fastest possible decay
   mixer.set_value("/-prefs/rta/det", [0], True) # 0: peak, 1: RMS
-  #mixer.set_value("/-stat/rta/source", [channel], True) # note: zero-based channel number
-  mixer.set_value("/-stat/rta/source", [31], True) # 31: MainLR on XAIR16
+  mixer.set_value("/-stat/rta/source", [channel], True) # note: zero-based channel number
+  #mixer.set_value("/-stat/rta/source", [31], True) # 31: MainLR on XAIR16
 
   for i in range(0, 30):
     cur_message = mixer.get_msg_from_queue()
@@ -77,22 +81,27 @@ def main():
     num_bytes = len(mixer_data)
     if num_bytes >= 4:
       size = struct.unpack('i', mixer_data[0:4])[0]
+      raw_values = [0] * size
       values = [0] * size
       for i in range(0, size):
-        cur_bytes = mixer_data[4 + i * 2:4 + i * 2 + 2]
-        values[i] = struct.unpack('h', cur_bytes)[0] / 256 # signed integer 16 bit, resolution 1/256 dB
+        cur_byte = mixer_data[4 + i * 2:4 + i * 2 + 2]
+        raw_values[i] = struct.unpack('h', cur_byte)[0] # signed integer 16 bit
+        values[i] = raw_values[i] / 256                 # resolution 1/256 dB
 
       if mixer_cmd == "/meters/2":
+        all_raw_inputs_queue.put(raw_values)
         all_inputs_queue.put(values)
-        update_plot(fig, line0, values)
+        if do_plots:
+          update_plot(fig, line0, values)
       elif mixer_cmd == "/meters/4":
         rta_queue.put(values)
-        update_plot(fig, line1, values)
+        if do_plots:
+          update_plot(fig, line1, values)
 
-  ## Octave: h=fopen('test.dat','rb');x=fread(h,Inf,'single');fclose(h);x=reshape(x,36,[]);close all;plot(x([13,14],:).')
+  ## Octave: h=fopen('test.dat','rb');x=fread(h,Inf,'int16');fclose(h);x=reshape(x,36,[])/256;close all;plot(x([13,14],:).')
   #with open(file_path, "ab") as file:
-  #  for data in list(all_inputs_queue.queue):
-  #    file.write(struct.pack('%sf' % len(data), *data))
+  #  for data in list(all_raw_inputs_queue.queue):
+  #    file.write(struct.pack('%sh' % len(data), *data))
 
   del mixer # to exit other thread
 
