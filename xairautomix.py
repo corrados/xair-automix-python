@@ -21,20 +21,23 @@
 # protocol: https://wiki.munichmakerlab.de/images/1/17/UNOFFICIAL_X32_OSC_REMOTE_PROTOCOL_%281%29.pdf
 # https://mediadl.musictribe.com/download/software/behringer/XAIR/X%20AIR%20Remote%20Control%20Protocol.pdf
 
-import sys, threading, time, socket, struct, queue
+import sys, threading, time, socket, struct
 sys.path.append('python-x32/src')
 sys.path.append('python-x32/src/pythonx32')
 import numpy as np
 from pythonx32 import x32
+from collections import deque
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 
-found_addr = -1
-channel = 12; # TEST
-len_meter2 = 36  # ALL INPUTS (16 mic, 2 aux, 18 usb = 36 values)
-len_meter4 = 100 # RTA100 (100 bins RTA = 100 values)
-file_path = "test.dat"
-do_plots = True
+found_addr  = -1
+channel     = 12; # TEST
+len_meter2  = 36  # ALL INPUTS (16 mic, 2 aux, 18 usb = 36 values)
+len_meter4  = 100 # RTA100 (100 bins RTA = 100 values)
+file_path   = "test.dat"
+do_plots    = True
+#queue_len_s = 20 * 60 # 20 minutes
+queue_len_s = 1 # TEST
 
 
 def main():
@@ -63,9 +66,11 @@ def main():
   if do_plots:
     fig, line0, line1 = setup_plot()
 
-  all_raw_inputs_queue = queue.Queue()
-  all_inputs_queue     = queue.Queue()
-  rta_queue            = queue.Queue()
+  # fill queues completely with zeros
+  queue_len = int(queue_len_s / 0.05) # update cycle frequency for meter data is 50 ms
+  all_raw_inputs_queue = deque([[0] * len_meter2] * queue_len)
+  all_inputs_queue     = deque([[0] * len_meter2] * queue_len)
+  rta_queue            = deque([[0] * len_meter4] * queue_len)
 
   # TEST configure RTA
   mixer.set_value("/-prefs/rta/decay", [0], True) # fastest possible decay
@@ -73,7 +78,7 @@ def main():
   mixer.set_value("/-stat/rta/source", [channel], True) # note: zero-based channel number
   #mixer.set_value("/-stat/rta/source", [31], True) # 31: MainLR on XAIR16
 
-  for i in range(0, 30):
+  for i in range(0, 2 * queue_len):
     cur_message = mixer.get_msg_from_queue()
     mixer_cmd = cur_message.address
     mixer_data = bytearray(cur_message.data[0])
@@ -89,25 +94,34 @@ def main():
         values[i] = raw_values[i] / 256                 # resolution 1/256 dB
 
       if mixer_cmd == "/meters/2":
-        all_raw_inputs_queue.put(raw_values)
-        all_inputs_queue.put(values)
+        all_raw_inputs_queue.popleft()
+        all_raw_inputs_queue.append(raw_values)
+        all_inputs_queue.popleft()
+        all_inputs_queue.append(values)
         if do_plots:
           update_plot(fig, line0, values)
       elif mixer_cmd == "/meters/4":
-        rta_queue.put(values)
+        rta_queue.popleft()
+        rta_queue.append(values)
         if do_plots:
           update_plot(fig, line1, values)
 
-  ## Octave: h=fopen('test.dat','rb');x=fread(h,Inf,'int16');fclose(h);x=reshape(x,36,[])/256;close all;plot(x([13,14],:).')
-  #with open(file_path, "ab") as file:
-  #  for data in list(all_raw_inputs_queue.queue):
-  #    file.write(struct.pack('%sh' % len(data), *data))
+  # TEST
+  max_all_inputs  = np.matrix.max(np.mat(list(all_inputs_queue)), axis=0)
+  mean_all_inputs = np.matrix.mean(np.mat(list(all_inputs_queue)), axis=0)
+  print(max_all_inputs)
+  print(mean_all_inputs)
+
+  # Octave: h=fopen('test.dat','rb');x=fread(h,Inf,'int16');fclose(h);x=reshape(x,36,[])/256;close all;plot(x([13,14],:).')
+  with open(file_path, "wb") as file:
+    for data in list(all_raw_inputs_queue):
+      file.write(struct.pack('%sh' % len(data), *data))
 
   del mixer # to exit other thread
 
 
 def basic_setup_mixer(mixer):
-  vocal   = [9 - 8]
+  vocal   = [ 9 - 8]
   guitar  = [11 - 8]
   bass    = [10 - 8]
   edrums  = [13 - 8]
