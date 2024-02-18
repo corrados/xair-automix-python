@@ -29,14 +29,17 @@ from pythonx32 import x32
 from collections import deque
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
+import tkinter as tk
+from tkinter import ttk
 
 found_addr   = -1
 channel      = 12; # TEST
 len_meter2   = 36  # ALL INPUTS (16 mic, 2 aux, 18 usb = 36 values)
 len_meter4   = 100 # RTA100 (100 bins RTA = 100 values)
+is_XR16      = False
 exit_threads = False
 file_path    = "test.dat"
-do_plots     = True
+do_plots     = False#True
 #queue_len_s  = 20 * 60 # 20 minutes
 queue_len_s = 30 # TEST
 
@@ -49,7 +52,7 @@ queue_mutex          = threading.Lock()
 
 
 def main():
-  global found_addr, found_port, fader_init_val, bus_init_val, mixer, exit_threads
+  global found_addr, found_port, fader_init_val, bus_init_val, mixer, exit_threads, is_XR16
 
   # search for a mixer and initialize the connection to the mixer
   local_port  = 10300
@@ -64,7 +67,8 @@ def main():
       if found_addr < 0:
         time.sleep(2) # time-out is 1 second -> wait two-times the time-out
 
-  mixer = x32.BehringerX32(f"{addr_subnet}.{found_addr}", local_port, False, 10, found_port)
+  mixer   = x32.BehringerX32(f"{addr_subnet}.{found_addr}", local_port, False, 10, found_port)
+  is_XR16 = "XR16" in mixer.get_value("/info")[2]
 
   #basic_setup_mixer(mixer)
 
@@ -74,10 +78,8 @@ def main():
   threading.Timer(0.0, store_input_levels_in_file).start()
 
   # TEST configure RTA
-  mixer.set_value("/-prefs/rta/decay", [0], True) # fastest possible decay
-  mixer.set_value("/-prefs/rta/det", [0], True) # 0: peak, 1: RMS
-  mixer.set_value("/-stat/rta/source", [channel], True) # note: zero-based channel number
-  #mixer.set_value("/-stat/rta/source", [31], True) # 31: MainLR on XAIR16
+  configure_rta(channel) # note: zero-based channel number
+  #configure_rta(31) # 31: MainLR on XAIR16
 
   if do_plots:
     fig, line0, line1 = setup_plot()
@@ -87,7 +89,13 @@ def main():
         update_plot(fig, line1, rta_queue[len(rta_queue) - 1])
       plt.pause(0.05)
   else:
-    time.sleep(3)
+    window = tk.Tk()
+    for i in  range(0, 10):
+      f = tk.Frame(window)
+      f.pack(side="left", padx='5', pady='5')
+      tk.Label(f, text=f"Level {i + 1}").pack()
+      ttk.Progressbar(f, orient=tk.VERTICAL).pack()
+    window.mainloop()
 
   ## TEST
   #with queue_mutex:
@@ -140,6 +148,14 @@ def basic_setup_mixer(mixer):
   mixer.set_value("/config/chlink/7-8", [1], True)   # stereo E-Git
   mixer.set_value("/config/chlink/15-16", [1], True) # stereo E-Drums
 
+
+def configure_rta(channel):
+  global mixer
+  mixer.set_value("/-prefs/rta/decay", [0], True) # fastest possible decay
+  mixer.set_value("/-prefs/rta/det", [0], True) # 0: peak, 1: RMS
+  mixer.set_value("/-stat/rta/source", [channel], True) # note: zero-based channel number
+
+
 def send_meters_request_message():
   global mixer
   while not exit_threads:
@@ -183,25 +199,23 @@ def receive_meter_messages():
 
 
 def store_input_levels_in_file():
+  # Octave: h=fopen('test.dat','rb');x=fread(h,Inf,'int16');fclose(h);x=reshape(x,36,[])/256;close all;plot(x.')
   while not exit_threads:
     with queue_mutex:
       cur_list_data = [] # just do copy in mutex and not the actual file storage
       while all_raw_inputs_queue:
         cur_list_data.append(all_raw_inputs_queue.popleft())
-
-    # Octave: h=fopen('test.dat','rb');x=fread(h,Inf,'int16');fclose(h);x=reshape(x,36,[])/256;close all;plot(x.')
     with open(file_path, "ab") as file:
       for data in cur_list_data:
         file.write(struct.pack('%sh' % len(data), *data))
-
-    if not exit_threads: time.sleep(1) # append logging file every second
+    if not exit_threads: time.sleep(1) # every second append logging file
 
 
 def set_gain(ch, x):
-  if ch < 8: # TODO this is only for XAIR16
-    mixer.set_value(f"/headamp/{ch + 1:#02}/gain", [(x + 12) / (60 - (-12))], False) # TODO readback does not work because of rounding effects
-  else:
+  if ch >= 8 and is_XR16:
     mixer.set_value(f"/headamp/{ch + 9:#02}/gain", [(x + 12) / (20 - (-12))], False) # TODO readback does not work because of rounding effects
+  else:
+    mixer.set_value(f"/headamp/{ch + 1:#02}/gain", [(x + 12) / (60 - (-12))], False) # TODO readback does not work because of rounding effects
 
 
 def update_plot(fig, line, values):
