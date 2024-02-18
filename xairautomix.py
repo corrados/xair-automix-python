@@ -30,25 +30,26 @@ from collections import deque
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 
-found_addr  = -1
-channel     = 12; # TEST
-len_meter2  = 36  # ALL INPUTS (16 mic, 2 aux, 18 usb = 36 values)
-len_meter4  = 100 # RTA100 (100 bins RTA = 100 values)
-file_path   = "test.dat"
-do_plots    = True
-#queue_len_s = 20 * 60 # 20 minutes
+found_addr   = -1
+channel      = 12; # TEST
+len_meter2   = 36  # ALL INPUTS (16 mic, 2 aux, 18 usb = 36 values)
+len_meter4   = 100 # RTA100 (100 bins RTA = 100 values)
+exit_threads = False
+file_path    = "test.dat"
+do_plots     = True
+#queue_len_s  = 20 * 60 # 20 minutes
 queue_len_s = 30 # TEST
 
 # create queues and fill completely with zeros for initialization
 queue_len = int(queue_len_s / 0.05) # update cycle frequency for meter data is 50 ms
-all_raw_inputs_queue = deque([[0] * len_meter2] * queue_len)
+all_raw_inputs_queue = deque()
 all_inputs_queue     = deque([[-128] * len_meter2] * queue_len)
 rta_queue            = deque([[-128] * len_meter4] * queue_len)
 queue_mutex          = threading.Lock()
 
 
 def main():
-  global found_addr, found_port, fader_init_val, bus_init_val, mixer
+  global found_addr, found_port, fader_init_val, bus_init_val, mixer, exit_threads
 
   # search for a mixer and initialize the connection to the mixer
   local_port  = 10300
@@ -67,9 +68,10 @@ def main():
 
   #basic_setup_mixer(mixer)
 
-  # separate threads for sending meters queries every second and receiving meter updates
+  # separate threads: sending meters queries; receiving meter updates; storing input levels in file
   threading.Timer(0.0, send_meters_request_message).start()
   threading.Timer(0.0, receive_meter_messages).start()
+  threading.Timer(0.0, store_input_levels_in_file).start()
 
   # TEST configure RTA
   mixer.set_value("/-prefs/rta/decay", [0], True) # fastest possible decay
@@ -79,7 +81,7 @@ def main():
 
   if do_plots:
     fig, line0, line1 = setup_plot()
-    for test in range(0, 30):
+    for test in range(0, 10):
       with queue_mutex:
         update_plot(fig, line0, all_inputs_queue[len(all_inputs_queue) - 1])
         update_plot(fig, line1, rta_queue[len(rta_queue) - 1])
@@ -87,20 +89,14 @@ def main():
   else:
     time.sleep(3)
 
-  # TEST
-  with queue_mutex:
-    max_all_inputs  = np.matrix.max(np.mat(list(all_inputs_queue)), axis=0)
-    mean_all_inputs = np.matrix.mean(np.mat(list(all_inputs_queue)), axis=0)
-  print(max_all_inputs)
-  print(mean_all_inputs)
+  ## TEST
+  #with queue_mutex:
+  #  max_all_inputs  = np.matrix.max(np.mat(list(all_inputs_queue)), axis=0)
+  #  mean_all_inputs = np.matrix.mean(np.mat(list(all_inputs_queue)), axis=0)
+  #print(max_all_inputs)
+  #print(mean_all_inputs)
 
-  # Octave: h=fopen('test.dat','rb');x=fread(h,Inf,'int16');fclose(h);x=reshape(x,36,[])/256;close all;plot(x([13,14],:).')
-  with queue_mutex:
-    with open(file_path, "wb") as file:
-      for data in list(all_raw_inputs_queue):
-        file.write(struct.pack('%sh' % len(data), *data))
-
-  del mixer # to exit other thread
+  exit_threads = True
 
 
 def basic_setup_mixer(mixer):
@@ -146,51 +142,59 @@ def basic_setup_mixer(mixer):
 
 def send_meters_request_message():
   global mixer
-  try:
-    while True:
-      #mixer.set_value(f'/meters', ['/meters/0', channel], False) # 8 channel meters
-      #mixer.set_value(f'/meters', ['/meters/1'], False)          # ALL CHANNELS
-      mixer.set_value(f'/meters', ['/meters/2'], False)           # ALL INPUTS
-      mixer.set_value(f'/meters', ['/meters/4'], False)           # RTA100
-      #mixer.set_value(f'/meters', ['/meters/5'], False)          # ALL OUTPUTS
-      time.sleep(1) # every second update meters request
-  except:
-    pass
+  while not exit_threads:
+    #mixer.set_value(f'/meters', ['/meters/0', channel], False) # 8 channel meters
+    #mixer.set_value(f'/meters', ['/meters/1'], False)          # ALL CHANNELS
+    mixer.set_value(f'/meters', ['/meters/2'], False)           # ALL INPUTS
+    mixer.set_value(f'/meters', ['/meters/4'], False)           # RTA100
+    #mixer.set_value(f'/meters', ['/meters/5'], False)          # ALL OUTPUTS
+    if not exit_threads: time.sleep(1) # every second update meters request
 
 
 def receive_meter_messages():
   global mixer
-  try:
-    while True:
-      cur_message = mixer.get_msg_from_queue()
-      mixer_cmd   = cur_message.address
+  while not exit_threads:
+    cur_message = mixer.get_msg_from_queue()
+    mixer_cmd   = cur_message.address
 
-      if mixer_cmd == "/meters/2" or mixer_cmd == "/meters/4":
-        mixer_data = bytearray(cur_message.data[0])
-        num_bytes = len(mixer_data)
-        if num_bytes >= 4:
-          size = struct.unpack('i', mixer_data[0:4])[0]
-          raw_values = [0] * size
-          values     = [0] * size
-          for i in range(0, size):
-            cur_byte = mixer_data[4 + i * 2:4 + i * 2 + 2]
-            raw_values[i] = struct.unpack('h', cur_byte)[0] # signed integer 16 bit
-            values[i] = raw_values[i] / 256                 # resolution 1/256 dB
+    if mixer_cmd == "/meters/2" or mixer_cmd == "/meters/4":
+      mixer_data = bytearray(cur_message.data[0])
+      num_bytes = len(mixer_data)
+      if num_bytes >= 4:
+        size = struct.unpack('i', mixer_data[0:4])[0]
+        raw_values = [0] * size
+        values     = [0] * size
+        for i in range(0, size):
+          cur_byte = mixer_data[4 + i * 2:4 + i * 2 + 2]
+          raw_values[i] = struct.unpack('h', cur_byte)[0] # signed integer 16 bit
+          values[i] = raw_values[i] / 256                 # resolution 1/256 dB
 
-          with queue_mutex:
-            if mixer_cmd == "/meters/2":
-              all_raw_inputs_queue.popleft()
-              all_raw_inputs_queue.append(raw_values)
-              all_inputs_queue.popleft()
-              all_inputs_queue.append(values)
-            elif mixer_cmd == "/meters/4":
-              rta_queue.popleft()
-              rta_queue.append(values)
-      else:
-        # no meters message, put it back on queue
-        mixer.put_msg_on_queue(cur_message)
-  except:
-    pass
+        with queue_mutex:
+          if mixer_cmd == "/meters/2":
+            all_raw_inputs_queue.append(raw_values)
+            all_inputs_queue.popleft()
+            all_inputs_queue.append(values)
+          elif mixer_cmd == "/meters/4":
+            rta_queue.popleft()
+            rta_queue.append(values)
+    else:
+      # no meters message, put it back on queue
+      mixer.put_msg_on_queue(cur_message)
+
+
+def store_input_levels_in_file():
+  while not exit_threads:
+    with queue_mutex:
+      cur_list_data = [] # just do copy in mutex and not the actual file storage
+      while all_raw_inputs_queue:
+        cur_list_data.append(all_raw_inputs_queue.popleft())
+
+    # Octave: h=fopen('test.dat','rb');x=fread(h,Inf,'int16');fclose(h);x=reshape(x,36,[])/256;close all;plot(x.')
+    with open(file_path, "ab") as file:
+      for data in cur_list_data:
+        file.write(struct.pack('%sh' % len(data), *data))
+
+    if not exit_threads: time.sleep(1) # append logging file every second
 
 
 def set_gain(ch, x):
