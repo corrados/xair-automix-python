@@ -34,7 +34,7 @@ from tkinter import ttk
 
 found_addr   = -1
 channel      = 12; # TEST
-len_meter2   = 36  # ALL INPUTS (16 mic, 2 aux, 18 usb = 36 values)
+len_meter2   = 18  # ALL INPUTS (16 mic, 2 aux, 18 usb = 36 values total but we only need the mic inputs)
 len_meter4   = 100 # RTA100 (100 bins RTA = 100 values)
 is_XR16      = False
 exit_threads = False
@@ -89,20 +89,34 @@ def main():
         update_plot(fig, line1, rta_queue[len(rta_queue) - 1])
       plt.pause(0.05)
   else:
-    window = tk.Tk()
-    bars = []
+    window     = tk.Tk()
+    input_bars = []
+    rta_bars   = []
+    inputs_f   = tk.Frame(window)
+    inputs_f.pack()
     for i in range(0, len_meter2):
-      f = tk.Frame(window)
+      f = tk.Frame(inputs_f)
       f.pack(side="left", pady='5')
       tk.Label(f, text=f"L{i + 1:^2}").pack()
-      bars.append(tk.DoubleVar(window))
-      ttk.Progressbar(f, orient=tk.VERTICAL, variable=bars[i]).pack()
+      input_bars.append(tk.DoubleVar(window))
+      ttk.Progressbar(f, orient=tk.VERTICAL, variable=input_bars[i]).pack()
+
+    #rta_f = tk.Frame(window)
+    #rta_f.pack()
+    #for i in range(0, len_meter4):
+    #  f = tk.Frame(rta_f)
+    #  f.pack(side="left", pady='5')
+    #  rta_bars.append(tk.DoubleVar(window))
+    #  ttk.Progressbar(f, orient=tk.VERTICAL, variable=rta_bars[i]).pack()
 
     for test in range(0, 50):
       with queue_mutex:
-        values = all_inputs_queue[len(all_inputs_queue) - 1]
+        input_values = all_inputs_queue[len(all_inputs_queue) - 1]
+        input_rta    = rta_queue[len(rta_queue) - 1]
       for i in range(0, len_meter2):
-        bars[i].set((values[i] / 128 + 1) * 100)
+        input_bars[i].set((input_values[i] / 128 + 1) * 100)
+      #for i in range(0, len_meter4):
+      #  rta_bars[i].set((input_rta[i] / 128 + 1) * 100)
       window.update()
       time.sleep(0.05)
     #window.mainloop()
@@ -197,9 +211,9 @@ def receive_meter_messages():
 
         with queue_mutex:
           if mixer_cmd == "/meters/2":
-            all_raw_inputs_queue.append(raw_values)
+            all_raw_inputs_queue.append(raw_values[0:len_meter2])
             all_inputs_queue.popleft()
-            all_inputs_queue.append(values)
+            all_inputs_queue.append(values[0:len_meter2])
           elif mixer_cmd == "/meters/4":
             rta_queue.popleft()
             rta_queue.append(values)
@@ -209,7 +223,7 @@ def receive_meter_messages():
 
 
 def store_input_levels_in_file():
-  # Octave: h=fopen('test.dat','rb');x=fread(h,Inf,'int16');fclose(h);x=reshape(x,36,[])/256;close all;plot(x.')
+  # Octave: h=fopen('test.dat','rb');x=fread(h,Inf,'int16');fclose(h);x=reshape(x,18,[])/256;close all;plot(x.')
   while not exit_threads:
     with queue_mutex:
       cur_list_data = [] # just do copy in mutex and not the actual file storage
