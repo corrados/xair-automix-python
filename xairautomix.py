@@ -90,12 +90,22 @@ def main():
       plt.pause(0.05)
   else:
     window = tk.Tk()
-    for i in  range(0, 10):
+    bars = []
+    for i in range(0, len_meter2):
       f = tk.Frame(window)
-      f.pack(side="left", padx='5', pady='5')
-      tk.Label(f, text=f"Level {i + 1}").pack()
-      ttk.Progressbar(f, orient=tk.VERTICAL).pack()
-    window.mainloop()
+      f.pack(side="left", pady='5')
+      tk.Label(f, text=f"L{i + 1:^2}").pack()
+      bars.append(tk.DoubleVar(window))
+      ttk.Progressbar(f, orient=tk.VERTICAL, variable=bars[i]).pack()
+
+    for test in range(0, 50):
+      with queue_mutex:
+        values = all_inputs_queue[len(all_inputs_queue) - 1]
+      for i in range(0, len_meter2):
+        bars[i].set((values[i] / 128 + 1) * 100)
+      window.update()
+      time.sleep(0.05)
+    #window.mainloop()
 
   ## TEST
   #with queue_mutex:
@@ -237,7 +247,6 @@ def setup_plot():
   ax1.grid(True)
   line0, = ax0.plot(range(0, len_meter2), [0] * len_meter2, marker='.')
   line1, = ax1.plot(range(0, len_meter4), [0] * len_meter4, marker='.')
-  #bar_container = ax1.bar(range(0, len_meter4), [96] * len_meter4, bottom=-96)
   ax0.set_ylim(ymin=-127, ymax=0)
   ax1.set_ylim(ymin=-127, ymax=0)
   return fig, line0, line1
