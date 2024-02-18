@@ -37,7 +37,14 @@ len_meter4  = 100 # RTA100 (100 bins RTA = 100 values)
 file_path   = "test.dat"
 do_plots    = True
 #queue_len_s = 20 * 60 # 20 minutes
-queue_len_s = 1 # TEST
+queue_len_s = 30 # TEST
+
+# create queues and fill completely with zeros for initialization
+queue_len = int(queue_len_s / 0.05) # update cycle frequency for meter data is 50 ms
+all_raw_inputs_queue = deque([[0] * len_meter2] * queue_len)
+all_inputs_queue     = deque([[-128] * len_meter2] * queue_len)
+rta_queue            = deque([[-128] * len_meter4] * queue_len)
+queue_mutex          = threading.Lock()
 
 
 def main():
@@ -60,17 +67,9 @@ def main():
 
   #basic_setup_mixer(mixer)
 
-  # separate thread for sending meters queries every second
+  # separate threads for sending meters queries every second and receiving meter updates
   threading.Timer(0.0, send_meters_request_message).start()
-
-  if do_plots:
-    fig, line0, line1 = setup_plot()
-
-  # fill queues completely with zeros
-  queue_len = int(queue_len_s / 0.05) # update cycle frequency for meter data is 50 ms
-  all_raw_inputs_queue = deque([[0] * len_meter2] * queue_len)
-  all_inputs_queue     = deque([[0] * len_meter2] * queue_len)
-  rta_queue            = deque([[0] * len_meter4] * queue_len)
+  threading.Timer(0.0, receive_meter_messages).start()
 
   # TEST configure RTA
   mixer.set_value("/-prefs/rta/decay", [0], True) # fastest possible decay
@@ -78,44 +77,28 @@ def main():
   mixer.set_value("/-stat/rta/source", [channel], True) # note: zero-based channel number
   #mixer.set_value("/-stat/rta/source", [31], True) # 31: MainLR on XAIR16
 
-  for i in range(0, 2 * queue_len):
-    cur_message = mixer.get_msg_from_queue()
-    mixer_cmd = cur_message.address
-    mixer_data = bytearray(cur_message.data[0])
-
-    num_bytes = len(mixer_data)
-    if num_bytes >= 4:
-      size = struct.unpack('i', mixer_data[0:4])[0]
-      raw_values = [0] * size
-      values = [0] * size
-      for i in range(0, size):
-        cur_byte = mixer_data[4 + i * 2:4 + i * 2 + 2]
-        raw_values[i] = struct.unpack('h', cur_byte)[0] # signed integer 16 bit
-        values[i] = raw_values[i] / 256                 # resolution 1/256 dB
-
-      if mixer_cmd == "/meters/2":
-        all_raw_inputs_queue.popleft()
-        all_raw_inputs_queue.append(raw_values)
-        all_inputs_queue.popleft()
-        all_inputs_queue.append(values)
-        if do_plots:
-          update_plot(fig, line0, values)
-      elif mixer_cmd == "/meters/4":
-        rta_queue.popleft()
-        rta_queue.append(values)
-        if do_plots:
-          update_plot(fig, line1, values)
+  if do_plots:
+    fig, line0, line1 = setup_plot()
+    for test in range(0, 30):
+      with queue_mutex:
+        update_plot(fig, line0, all_inputs_queue[len(all_inputs_queue) - 1])
+        update_plot(fig, line1, rta_queue[len(rta_queue) - 1])
+      plt.pause(0.05)
+  else:
+    time.sleep(3)
 
   # TEST
-  max_all_inputs  = np.matrix.max(np.mat(list(all_inputs_queue)), axis=0)
-  mean_all_inputs = np.matrix.mean(np.mat(list(all_inputs_queue)), axis=0)
+  with queue_mutex:
+    max_all_inputs  = np.matrix.max(np.mat(list(all_inputs_queue)), axis=0)
+    mean_all_inputs = np.matrix.mean(np.mat(list(all_inputs_queue)), axis=0)
   print(max_all_inputs)
   print(mean_all_inputs)
 
   # Octave: h=fopen('test.dat','rb');x=fread(h,Inf,'int16');fclose(h);x=reshape(x,36,[])/256;close all;plot(x([13,14],:).')
-  with open(file_path, "wb") as file:
-    for data in list(all_raw_inputs_queue):
-      file.write(struct.pack('%sh' % len(data), *data))
+  with queue_mutex:
+    with open(file_path, "wb") as file:
+      for data in list(all_raw_inputs_queue):
+        file.write(struct.pack('%sh' % len(data), *data))
 
   del mixer # to exit other thread
 
@@ -175,6 +158,41 @@ def send_meters_request_message():
     pass
 
 
+def receive_meter_messages():
+  global mixer
+  try:
+    while True:
+      cur_message = mixer.get_msg_from_queue()
+      mixer_cmd   = cur_message.address
+
+      if mixer_cmd == "/meters/2" or mixer_cmd == "/meters/4":
+        mixer_data = bytearray(cur_message.data[0])
+        num_bytes = len(mixer_data)
+        if num_bytes >= 4:
+          size = struct.unpack('i', mixer_data[0:4])[0]
+          raw_values = [0] * size
+          values     = [0] * size
+          for i in range(0, size):
+            cur_byte = mixer_data[4 + i * 2:4 + i * 2 + 2]
+            raw_values[i] = struct.unpack('h', cur_byte)[0] # signed integer 16 bit
+            values[i] = raw_values[i] / 256                 # resolution 1/256 dB
+
+          with queue_mutex:
+            if mixer_cmd == "/meters/2":
+              all_raw_inputs_queue.popleft()
+              all_raw_inputs_queue.append(raw_values)
+              all_inputs_queue.popleft()
+              all_inputs_queue.append(values)
+            elif mixer_cmd == "/meters/4":
+              rta_queue.popleft()
+              rta_queue.append(values)
+      else:
+        # no meters message, put it back on queue
+        mixer.put_msg_on_queue(cur_message)
+  except:
+    pass
+
+
 def set_gain(ch, x):
   if ch < 8: # TODO this is only for XAIR16
     mixer.set_value(f"/headamp/{ch + 1:#02}/gain", [(x + 12) / (60 - (-12))], False) # TODO readback does not work because of rounding effects
@@ -208,31 +226,31 @@ def setup_plot():
 
 
 def try_to_ping_mixer(addr_subnet, start_port, i, j):
-    global found_addr, found_port
-    #print(f"{addr_subnet}.{i}:{start_port + i + j}")
-    search_mixer = x32.BehringerX32(f"{addr_subnet}.{i}", start_port + i + j, False, 1, j) # just one second time-out
-    try:
-      search_mixer.ping()
-      search_mixer.__del__() # important to delete object before changing found_addr
-      found_addr = i
-      found_port = j
-    except:
-      search_mixer.__del__()
+  global found_addr, found_port
+  #print(f"{addr_subnet}.{i}:{start_port + i + j}")
+  search_mixer = x32.BehringerX32(f"{addr_subnet}.{i}", start_port + i + j, False, 1, j) # just one second time-out
+  try:
+    search_mixer.ping()
+    search_mixer.__del__() # important to delete object before changing found_addr
+    found_addr = i
+    found_port = j
+  except:
+    search_mixer.__del__()
 
 
 # taken from stack overflow "Finding local IP addresses using Python's stdlib"
 def get_ip():
-    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    s.settimeout(0)
-    try:
-      # doesn't even have to be reachable
-      s.connect(('10.255.255.255', 1))
-      IP = s.getsockname()[0]
-    except Exception:
-      IP = '127.0.0.1'
-    finally:
-      s.close()
-    return IP
+  s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+  s.settimeout(0)
+  try:
+    # doesn't even have to be reachable
+    s.connect(('10.255.255.255', 1))
+    IP = s.getsockname()[0]
+  except Exception:
+    IP = '127.0.0.1'
+  finally:
+    s.close()
+  return IP
 
 
 if __name__ == '__main__':
