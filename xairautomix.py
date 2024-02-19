@@ -32,18 +32,19 @@ import matplotlib.gridspec as gridspec
 import tkinter as tk
 from tkinter import ttk
 
-found_addr   = -1
-channel      = 12; # TEST
-len_meter2   = 18  # ALL INPUTS (16 mic, 2 aux, 18 usb = 36 values total but we only need the mic inputs)
-len_meter4   = 100 # RTA100 (100 bins RTA = 100 values)
-is_XR16      = False
-exit_threads = False
-file_path    = "test.dat"
-#queue_len_s  = 20 * 60 # 20 minutes
-queue_len_s = 30 # TEST
+local_port     = 10300
+found_addr     = -1
+channel        = 12; # TEST
+len_meter2     = 18  # ALL INPUTS (16 mic, 2 aux, 18 usb = 36 values total but we only need the mic inputs)
+len_meter4     = 100 # RTA100 (100 bins RTA = 100 values)
+meter_update_s = 0.05 # update cycle frequency for meter data is 50 ms
+is_XR16        = False
+exit_threads   = False
+file_path      = "test.dat"
+queue_len_s    = 20 * 60 # 20 minutes
 
 # create queues and fill completely with zeros for initialization
-queue_len = int(queue_len_s / 0.05) # update cycle frequency for meter data is 50 ms
+queue_len = int(queue_len_s / meter_update_s)
 all_raw_inputs_queue = deque()
 all_inputs_queue     = deque([[-128] * len_meter2] * queue_len)
 rta_queue            = deque([[-128] * len_meter4] * queue_len)
@@ -51,69 +52,24 @@ queue_mutex          = threading.Lock()
 
 
 def main():
-  global found_addr, found_port, fader_init_val, bus_init_val, mixer, exit_threads, is_XR16
+  global found_addr, found_port, fader_init_val, bus_init_val, mixer, is_XR16
 
   # search for a mixer and initialize the connection to the mixer
-  local_port  = 10300
-  addr_subnet = '.'.join(get_ip().split('.')[0:3]) # only use first three numbers of local IP address
-  while found_addr < 0:
-    for j in range(10024, 10022, -1): # X32:10023, XAIR:10024 -> check both
-      if found_addr < 0:
-        for i in range(2, 255):
-          threading.Thread(target = try_to_ping_mixer, args = (addr_subnet, local_port + 1, i, j, )).start()
-          if found_addr >= 0:
-            break
-      if found_addr < 0:
-        time.sleep(2) # time-out is 1 second -> wait two-times the time-out
-
+  addr_subnet = search_mixer()
   mixer   = x32.BehringerX32(f"{addr_subnet}.{found_addr}", local_port, False, 10, found_port)
   is_XR16 = "XR16" in mixer.get_value("/info")[2]
 
   #basic_setup_mixer(mixer)
 
-  # separate threads: sending meters queries; receiving meter updates; storing input levels in file
+  # start separate threads
   threading.Timer(0.0, send_meters_request_message).start()
   threading.Timer(0.0, receive_meter_messages).start()
   threading.Timer(0.0, store_input_levels_in_file).start()
+  threading.Timer(0.0, gui_thread).start()
 
   # TEST configure RTA
   configure_rta(channel) # note: zero-based channel number
   #configure_rta(31) # 31: MainLR on XAIR16
-
-  window = tk.Tk()
-  window.title("XR Auto Mix")
-  input_bars = []
-  rta_bars   = []
-  inputs_f   = tk.Frame(window)
-  inputs_f.pack()
-  for i in range(0, len_meter2):
-    f = tk.Frame(inputs_f)
-    f.pack(side="left", pady='5')
-    tk.Label(f, text=f"L{i + 1:^2}").pack()
-    input_bars.append(tk.DoubleVar(window))
-    ttk.Progressbar(f, orient=tk.VERTICAL, variable=input_bars[i]).pack()
-
-  canvas_height  = 100
-  rta_line_width = 3
-  canvas_width   = 100 * rta_line_width + 100
-  rta = tk.Canvas(window, width=canvas_width, height=canvas_height)
-  rta.pack()
-
-  for test in range(0, 50):
-    with queue_mutex:
-      input_values = all_inputs_queue[len(all_inputs_queue) - 1]
-      input_rta    = rta_queue[len(rta_queue) - 1]
-    for i in range(0, len_meter2):
-      input_bars[i].set((input_values[i] / 128 + 1) * 100)
-
-    rta.delete("all")
-    for i in range(0, len_meter4):
-      x = rta_line_width + i * rta_line_width + i
-      y = (input_rta[i] / 128 + 1) * canvas_height
-      rta.create_line(x, canvas_height, x, canvas_height - y, fill="#476042", width=rta_line_width)
-
-    window.update()
-    time.sleep(0.05)
 
   ## TEST
   #with queue_mutex:
@@ -121,8 +77,6 @@ def main():
   #  mean_all_inputs = np.matrix.mean(np.mat(list(all_inputs_queue)), axis=0)
   #print(max_all_inputs)
   #print(mean_all_inputs)
-
-  exit_threads = True
 
 
 def basic_setup_mixer(mixer):
@@ -174,6 +128,13 @@ def configure_rta(channel):
   mixer.set_value("/-stat/rta/source", [channel], True) # note: zero-based channel number
 
 
+def set_gain(ch, x):
+  if ch >= 8 and is_XR16:
+    mixer.set_value(f"/headamp/{ch + 9:#02}/gain", [(x + 12) / (20 - (-12))], False) # TODO readback does not work because of rounding effects
+  else:
+    mixer.set_value(f"/headamp/{ch + 1:#02}/gain", [(x + 12) / (60 - (-12))], False) # TODO readback does not work because of rounding effects
+
+
 def send_meters_request_message():
   global mixer
   while not exit_threads:
@@ -216,6 +177,45 @@ def receive_meter_messages():
       mixer.put_msg_on_queue(cur_message)
 
 
+def gui_thread():
+  global exit_threads
+  window     = tk.Tk(className="XR Auto Mix")
+  input_bars = []
+  rta_bars   = []
+  inputs_f   = tk.Frame(window)
+  inputs_f.pack()
+  for i in range(0, len_meter2):
+    f = tk.Frame(inputs_f)
+    f.pack(side="left", pady='5')
+    tk.Label(f, text=f"L{i + 1:^2}").pack()
+    input_bars.append(tk.DoubleVar(window))
+    ttk.Progressbar(f, orient=tk.VERTICAL, variable=input_bars[i]).pack()
+
+  canvas_height  = 100
+  rta_line_width = 3
+  rta = tk.Canvas(window, width=len_meter4 * rta_line_width + len_meter4, height=canvas_height)
+  rta.pack()
+
+  while not exit_threads:
+    try:
+      with queue_mutex:
+        input_values = all_inputs_queue[len(all_inputs_queue) - 1]
+        input_rta    = rta_queue[len(rta_queue) - 1]
+      for i in range(0, len_meter2):
+        input_bars[i].set((input_values[i] / 128 + 1) * 100)
+
+      rta.delete("all")
+      for i in range(0, len_meter4):
+        x = rta_line_width + i * rta_line_width + i
+        y = (input_rta[i] / 128 + 1) * canvas_height
+        rta.create_line(x, canvas_height, x, canvas_height - y, fill="#476042", width=rta_line_width)
+
+      window.update()
+      time.sleep(meter_update_s)
+    except:
+      exit_threads = True
+
+
 def store_input_levels_in_file():
   # Octave: h=fopen('test.dat','rb');x=fread(h,Inf,'int16');fclose(h);x=reshape(x,18,[])/256;close all;plot(x.')
   while not exit_threads:
@@ -229,11 +229,18 @@ def store_input_levels_in_file():
     if not exit_threads: time.sleep(1) # every second append logging file
 
 
-def set_gain(ch, x):
-  if ch >= 8 and is_XR16:
-    mixer.set_value(f"/headamp/{ch + 9:#02}/gain", [(x + 12) / (20 - (-12))], False) # TODO readback does not work because of rounding effects
-  else:
-    mixer.set_value(f"/headamp/{ch + 1:#02}/gain", [(x + 12) / (60 - (-12))], False) # TODO readback does not work because of rounding effects
+def search_mixer():
+  addr_subnet = '.'.join(get_ip().split('.')[0:3]) # only use first three numbers of local IP address
+  while found_addr < 0:
+    for j in range(10024, 10022, -1): # X32:10023, XAIR:10024 -> check both
+      if found_addr < 0:
+        for i in range(2, 255):
+          threading.Thread(target = try_to_ping_mixer, args = (addr_subnet, local_port + 1, i, j, )).start()
+          if found_addr >= 0:
+            break
+      if found_addr < 0:
+        time.sleep(2) # time-out is 1 second -> wait two-times the time-out
+  return addr_subnet
 
 
 def try_to_ping_mixer(addr_subnet, start_port, i, j):
