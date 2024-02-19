@@ -39,7 +39,6 @@ len_meter4   = 100 # RTA100 (100 bins RTA = 100 values)
 is_XR16      = False
 exit_threads = False
 file_path    = "test.dat"
-do_plots     = False#True
 #queue_len_s  = 20 * 60 # 20 minutes
 queue_len_s = 30 # TEST
 
@@ -81,45 +80,40 @@ def main():
   configure_rta(channel) # note: zero-based channel number
   #configure_rta(31) # 31: MainLR on XAIR16
 
-  if do_plots:
-    fig, line0, line1 = setup_plot()
-    for test in range(0, 10):
-      with queue_mutex:
-        update_plot(fig, line0, all_inputs_queue[len(all_inputs_queue) - 1])
-        update_plot(fig, line1, rta_queue[len(rta_queue) - 1])
-      plt.pause(0.05)
-  else:
-    window     = tk.Tk()
-    input_bars = []
-    rta_bars   = []
-    inputs_f   = tk.Frame(window)
-    inputs_f.pack()
+  window = tk.Tk()
+  window.title("XR Auto Mix")
+  input_bars = []
+  rta_bars   = []
+  inputs_f   = tk.Frame(window)
+  inputs_f.pack()
+  for i in range(0, len_meter2):
+    f = tk.Frame(inputs_f)
+    f.pack(side="left", pady='5')
+    tk.Label(f, text=f"L{i + 1:^2}").pack()
+    input_bars.append(tk.DoubleVar(window))
+    ttk.Progressbar(f, orient=tk.VERTICAL, variable=input_bars[i]).pack()
+
+  canvas_height  = 100
+  rta_line_width = 3
+  canvas_width   = 100 * rta_line_width + 100
+  rta = tk.Canvas(window, width=canvas_width, height=canvas_height)
+  rta.pack()
+
+  for test in range(0, 50):
+    with queue_mutex:
+      input_values = all_inputs_queue[len(all_inputs_queue) - 1]
+      input_rta    = rta_queue[len(rta_queue) - 1]
     for i in range(0, len_meter2):
-      f = tk.Frame(inputs_f)
-      f.pack(side="left", pady='5')
-      tk.Label(f, text=f"L{i + 1:^2}").pack()
-      input_bars.append(tk.DoubleVar(window))
-      ttk.Progressbar(f, orient=tk.VERTICAL, variable=input_bars[i]).pack()
+      input_bars[i].set((input_values[i] / 128 + 1) * 100)
 
-    #rta_f = tk.Frame(window)
-    #rta_f.pack()
-    #for i in range(0, len_meter4):
-    #  f = tk.Frame(rta_f)
-    #  f.pack(side="left", pady='5')
-    #  rta_bars.append(tk.DoubleVar(window))
-    #  ttk.Progressbar(f, orient=tk.VERTICAL, variable=rta_bars[i]).pack()
+    rta.delete("all")
+    for i in range(0, len_meter4):
+      x = rta_line_width + i * rta_line_width + i
+      y = (input_rta[i] / 128 + 1) * canvas_height
+      rta.create_line(x, canvas_height, x, canvas_height - y, fill="#476042", width=rta_line_width)
 
-    for test in range(0, 50):
-      with queue_mutex:
-        input_values = all_inputs_queue[len(all_inputs_queue) - 1]
-        input_rta    = rta_queue[len(rta_queue) - 1]
-      for i in range(0, len_meter2):
-        input_bars[i].set((input_values[i] / 128 + 1) * 100)
-      #for i in range(0, len_meter4):
-      #  rta_bars[i].set((input_rta[i] / 128 + 1) * 100)
-      window.update()
-      time.sleep(0.05)
-    #window.mainloop()
+    window.update()
+    time.sleep(0.05)
 
   ## TEST
   #with queue_mutex:
@@ -240,30 +234,6 @@ def set_gain(ch, x):
     mixer.set_value(f"/headamp/{ch + 9:#02}/gain", [(x + 12) / (20 - (-12))], False) # TODO readback does not work because of rounding effects
   else:
     mixer.set_value(f"/headamp/{ch + 1:#02}/gain", [(x + 12) / (60 - (-12))], False) # TODO readback does not work because of rounding effects
-
-
-def update_plot(fig, line, values):
-  line.set_ydata(values)
-  #bar_container.datavalues = np.array(values) + 96
-  fig.canvas.draw()
-  fig.canvas.flush_events()
-
-
-def setup_plot():
-  plt.ion()
-  fig = plt.figure(tight_layout=True)
-  gs  = gridspec.GridSpec(2, 1)
-  ax0 = fig.add_subplot(gs[0, 0])
-  ax1 = fig.add_subplot(gs[1, 0])
-  ax0.set_title("ALL INPUTS")
-  ax1.set_title("RTA100")
-  ax0.grid(True)
-  ax1.grid(True)
-  line0, = ax0.plot(range(0, len_meter2), [0] * len_meter2, marker='.')
-  line1, = ax1.plot(range(0, len_meter4), [0] * len_meter4, marker='.')
-  ax0.set_ylim(ymin=-127, ymax=0)
-  ax1.set_ylim(ymin=-127, ymax=0)
-  return fig, line0, line1
 
 
 def try_to_ping_mixer(addr_subnet, start_port, i, j):
