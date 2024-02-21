@@ -34,20 +34,22 @@ from tkinter import ttk
 
 local_port     = 10300
 found_addr     = -1
-channel        = 12; # TEST
+channel        = 12 # TEST
 len_meter2     = 18  # ALL INPUTS (16 mic, 2 aux, 18 usb = 36 values total but we only need the mic inputs)
 len_meter4     = 100 # RTA100 (100 bins RTA = 100 values)
+hist_len       = 100 # histogram bins
 meter_update_s = 0.05 # update cycle frequency for meter data is 50 ms
 is_XR16        = False
 exit_threads   = False
 file_path      = "test.dat"
-queue_len_s    = 20 * 60 # 20 minutes
+queue_len_s    = 5 * 60 # 5 minutes
 
 # create queues and fill completely with zeros for initialization
 queue_len = int(queue_len_s / meter_update_s)
 all_raw_inputs_queue = deque()
-all_inputs_queue     = deque([[-128] * len_meter2] * queue_len)
-rta_queue            = deque([[-128] * len_meter4] * queue_len)
+all_inputs_queue     = deque([[-200] * len_meter2] * queue_len) # using invalid initialization value of -200 dB
+rta_queue            = deque([[-200] * len_meter4] * queue_len) # using invalid initialization value of -200 dB
+histograms           = [[0] * hist_len for i in range(len_meter2)]
 queue_mutex          = threading.Lock()
 
 
@@ -159,7 +161,7 @@ def receive_meter_messages():
         size = struct.unpack('i', mixer_data[0:4])[0]
         raw_values = [0] * size
         values     = [0] * size
-        for i in range(0, size):
+        for i in range(size):
           cur_byte = mixer_data[4 + i * 2:4 + i * 2 + 2]
           raw_values[i] = struct.unpack('h', cur_byte)[0] # signed integer 16 bit
           values[i] = raw_values[i] / 256                 # resolution 1/256 dB
@@ -167,14 +169,27 @@ def receive_meter_messages():
         with queue_mutex:
           if mixer_cmd == "/meters/2":
             all_raw_inputs_queue.append(raw_values[0:len_meter2])
-            all_inputs_queue.popleft()
-            all_inputs_queue.append(values[0:len_meter2])
+            old_values = all_inputs_queue.popleft()
+            cur_values = values[0:len_meter2]
+            calc_histograms(old_values, cur_values)
+            all_inputs_queue.append(cur_values)
           elif mixer_cmd == "/meters/4":
             rta_queue.popleft()
             rta_queue.append(values)
     else:
       # no meters message, put it back on queue
       mixer.put_msg_on_queue(cur_message)
+
+
+def calc_histograms(old_values, cur_values):
+  for i in range(len_meter2):
+    old_value = old_values[i]
+    cur_value = cur_values[i]
+    if old_value > -200: # check for invalid initialization value
+      old_hist_idx = int((old_value + 128) / 128 * hist_len)
+      histograms[i][old_hist_idx] -= 1 # histogram with moving time window
+    cur_hist_idx = int((cur_value + 128) / 128 * hist_len)
+    histograms[i][cur_hist_idx] += 1
 
 
 def gui_thread():
@@ -184,7 +199,7 @@ def gui_thread():
   rta_bars   = []
   inputs_f   = tk.Frame(window)
   inputs_f.pack()
-  for i in range(0, len_meter2):
+  for i in range(len_meter2):
     f = tk.Frame(inputs_f)
     f.pack(side="left", pady='5')
     tk.Label(f, text=f"L{i + 1:^2}").pack()
@@ -195,20 +210,29 @@ def gui_thread():
   rta_line_width = 3
   rta = tk.Canvas(window, width=len_meter4 * rta_line_width + len_meter4, height=canvas_height)
   rta.pack()
+  hist_line_width = 3
+  hist = tk.Canvas(window, width=hist_len * hist_line_width + hist_len, height=canvas_height)
+  hist.pack()
 
   while not exit_threads:
     try:
       with queue_mutex:
         input_values = all_inputs_queue[len(all_inputs_queue) - 1]
         input_rta    = rta_queue[len(rta_queue) - 1]
-      for i in range(0, len_meter2):
+      for i in range(len_meter2):
         input_bars[i].set((input_values[i] / 128 + 1) * 100)
 
       rta.delete("all")
-      for i in range(0, len_meter4):
+      for i in range(len_meter4):
         x = rta_line_width + i * rta_line_width + i
         y = (input_rta[i] / 128 + 1) * canvas_height
         rta.create_line(x, canvas_height, x, canvas_height - y, fill="#476042", width=rta_line_width)
+
+      hist.delete("all")
+      for i in range(hist_len):
+        x = hist_line_width + i * hist_line_width + i
+        y = (histograms[channel][i] / max(histograms[channel])) * canvas_height
+        hist.create_line(x, canvas_height, x, canvas_height - y, fill="#476042", width=hist_line_width)
 
       window.update()
       time.sleep(meter_update_s)
