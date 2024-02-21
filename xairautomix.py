@@ -181,6 +181,13 @@ def receive_meter_messages():
       mixer.put_msg_on_queue(cur_message)
 
 
+def analyze_histogram(histogram):
+  max_index      = np.argmax(histogram)
+  max_data_index = len(histogram) - 1 # start value
+  while histogram[max_data_index] == 0 and max_data_index > 0: max_data_index -= 1
+  return (max_index, max_data_index)
+
+
 def calc_histograms(old_values, cur_values):
   for i in range(len_meter2):
     old_value = old_values[i]
@@ -228,11 +235,13 @@ def gui_thread():
         y = (input_rta[i] / 128 + 1) * canvas_height
         rta.create_line(x, canvas_height, x, canvas_height - y, fill="#476042", width=rta_line_width)
 
+      (max_index, max_data_index) = analyze_histogram(histograms[channel])
       hist.delete("all")
       for i in range(hist_len):
         x = hist_line_width + i * hist_line_width + i
         y = (histograms[channel][i] / max(histograms[channel])) * canvas_height
-        hist.create_line(x, canvas_height, x, canvas_height - y, fill="#476042", width=hist_line_width)
+        color = "blue" if i == max_index else "red" if i == max_data_index else "#476042"
+        hist.create_line(x, canvas_height, x, canvas_height - y, fill=color, width=hist_line_width)
 
       window.update()
       time.sleep(meter_update_s)
