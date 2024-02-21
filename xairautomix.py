@@ -186,9 +186,9 @@ def calc_histograms(old_values, cur_values):
     old_value = old_values[i]
     cur_value = cur_values[i]
     if old_value > -200: # check for invalid initialization value
-      old_hist_idx = int((old_value + 128) / 128 * hist_len)
+      old_hist_idx = int((old_value + 128) / 129 * hist_len)
       histograms[i][old_hist_idx] -= 1 # histogram with moving time window
-    cur_hist_idx = int((cur_value + 128) / 128 * hist_len)
+    cur_hist_idx = int((cur_value + 128) / 129 * hist_len)
     histograms[i][cur_hist_idx] += 1
 
 
