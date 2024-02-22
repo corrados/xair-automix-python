@@ -34,7 +34,7 @@ from tkinter import ttk
 
 local_port     = 10300
 found_addr     = -1
-channel        = 12 # TEST
+channel        = -1  # initialize with invalid channel
 len_meter2     = 18  # ALL INPUTS (16 mic, 2 aux, 18 usb = 36 values total but we only need the mic inputs)
 len_meter4     = 100 # RTA100 (100 bins RTA = 100 values)
 hist_len       = 100 # histogram bins
@@ -68,17 +68,6 @@ def main():
   threading.Timer(0.0, receive_meter_messages).start()
   threading.Timer(0.0, store_input_levels_in_file).start()
   threading.Timer(0.0, gui_thread).start()
-
-  # TEST configure RTA
-  configure_rta(channel) # note: zero-based channel number
-  #configure_rta(31) # 31: MainLR on XAIR16
-
-  ## TEST
-  #with queue_mutex:
-  #  max_all_inputs  = np.matrix.max(np.mat(list(all_inputs_queue)), axis=0)
-  #  mean_all_inputs = np.matrix.mean(np.mat(list(all_inputs_queue)), axis=0)
-  #print(max_all_inputs)
-  #print(mean_all_inputs)
 
 
 def basic_setup_mixer(mixer):
@@ -132,9 +121,9 @@ def configure_rta(channel):
 
 def set_gain(ch, x):
   if ch >= 8 and is_XR16:
-    mixer.set_value(f"/headamp/{ch + 9:#02}/gain", [(x + 12) / (20 - (-12))], False) # TODO readback does not work because of rounding effects
+    mixer.set_value(f"/headamp/{ch + 9:#02}/gain", [(x + 12) / (20 - (-12))], False) # TODO rounding issue with readback
   else:
-    mixer.set_value(f"/headamp/{ch + 1:#02}/gain", [(x + 12) / (60 - (-12))], False) # TODO readback does not work because of rounding effects
+    mixer.set_value(f"/headamp/{ch + 1:#02}/gain", [(x + 12) / (60 - (-12))], False) # TODO rounding issue with readback
 
 
 def send_meters_request_message():
@@ -200,7 +189,7 @@ def calc_histograms(old_values, cur_values):
 
 
 def gui_thread():
-  global exit_threads
+  global exit_threads, channel
   window     = tk.Tk(className="XR Auto Mix")
   input_bars = []
   rta_bars   = []
@@ -213,6 +202,11 @@ def gui_thread():
     input_bars.append(tk.DoubleVar(window))
     ttk.Progressbar(f, orient=tk.VERTICAL, variable=input_bars[i]).pack()
 
+  tk.Label(window, text="Channel Selection:").pack(side='top')
+  channel_sel = ttk.Combobox(window)
+  channel_sel['values'] = [f"{x}" for x in range(len_meter2)]#range(len_meter2)
+  channel_sel.current(12)#0)
+  channel_sel.pack(side='top')
   canvas_height  = 100
   rta_line_width = 3
   rta = tk.Canvas(window, width=len_meter4 * rta_line_width + len_meter4, height=canvas_height)
@@ -242,6 +236,11 @@ def gui_thread():
         y = (histograms[channel][i] / max(histograms[channel])) * canvas_height
         color = "blue" if i == max_index else "red" if i == max_data_index else "#476042"
         hist.create_line(x, canvas_height, x, canvas_height - y, fill=color, width=hist_line_width)
+
+      if int(channel_sel.get()) is not channel:
+        channel = int(channel_sel.get())
+        configure_rta(channel)
+        #configure_rta(31) # 31: MainLR on XAIR16
 
       window.update()
       time.sleep(meter_update_s)
