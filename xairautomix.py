@@ -32,17 +32,19 @@ import matplotlib.gridspec as gridspec
 import tkinter as tk
 from tkinter import ttk
 
-local_port     = 10300
-found_addr     = -1
-channel        = -1  # initialize with invalid channel
-len_meter2     = 18  # ALL INPUTS (16 mic, 2 aux, 18 usb = 36 values total but we only need the mic inputs)
-len_meter4     = 100 # RTA100 (100 bins RTA = 100 values)
-hist_len       = 100 # histogram bins
-meter_update_s = 0.05 # update cycle frequency for meter data is 50 ms
-is_XR16        = False
-exit_threads   = False
-file_path      = "test.dat"
-queue_len_s    = 5 * 60 # 5 minutes
+local_port      = 10300
+found_addr      = -1
+channel         = -1  # initialize with invalid channel
+len_meter2      = 18  # ALL INPUTS (16 mic, 2 aux, 18 usb = 36 values total but we only need the mic inputs)
+len_meter4      = 100 # RTA100 (100 bins RTA = 100 values)
+hist_len        = 100 # histogram bins
+meter_update_s  = 0.05 # update cycle frequency for meter data is 50 ms
+rta_line_width  = 3
+hist_line_width = 3
+is_XR16         = False
+exit_threads    = False
+file_path       = "test.dat"
+queue_len_s     = 5 * 60 # 5 minutes
 
 # create queues and fill completely with zeros for initialization
 queue_len = int(queue_len_s / meter_update_s)
@@ -114,8 +116,8 @@ def basic_setup_mixer(mixer):
 
 def configure_rta(channel):
   global mixer
-  mixer.set_value("/-prefs/rta/decay", [0], True) # fastest possible decay
-  mixer.set_value("/-prefs/rta/det", [0], True) # 0: peak, 1: RMS
+  mixer.set_value("/-prefs/rta/decay", [0], True)       # fastest possible decay
+  mixer.set_value("/-prefs/rta/det", [0], True)         # 0: peak, 1: RMS
   mixer.set_value("/-stat/rta/source", [channel], True) # note: zero-based channel number
 
 
@@ -145,15 +147,15 @@ def receive_meter_messages():
 
     if mixer_cmd == "/meters/2" or mixer_cmd == "/meters/4":
       mixer_data = bytearray(cur_message.data[0])
-      num_bytes = len(mixer_data)
+      num_bytes  = len(mixer_data)
       if num_bytes >= 4:
         size = struct.unpack('i', mixer_data[0:4])[0]
         raw_values = [0] * size
         values     = [0] * size
         for i in range(size):
-          cur_byte = mixer_data[4 + i * 2:4 + i * 2 + 2]
+          cur_byte      = mixer_data[4 + i * 2:4 + i * 2 + 2]
           raw_values[i] = struct.unpack('h', cur_byte)[0] # signed integer 16 bit
-          values[i] = raw_values[i] / 256                 # resolution 1/256 dB
+          values[i]     = raw_values[i] / 256             # resolution 1/256 dB
 
         with queue_mutex:
           if mixer_cmd == "/meters/2":
@@ -205,14 +207,12 @@ def gui_thread():
 
   tk.Label(window, text="Channel Selection:").pack(side='top')
   channel_sel = ttk.Combobox(window)
-  channel_sel['values'] = [f"{x}" for x in range(len_meter2)]#range(len_meter2)
-  channel_sel.current(12)#0)
+  channel_sel['values'] = [f"{x}" for x in range(1, len_meter2 + 1)]
+  channel_sel.current(13)#0)
   channel_sel.pack(side='top')
   canvas_height  = 100
-  rta_line_width = 3
   rta = tk.Canvas(window, width=len_meter4 * rta_line_width + len_meter4, height=canvas_height)
   rta.pack()
-  hist_line_width = 3
   hist = tk.Canvas(window, width=hist_len * hist_line_width + hist_len, height=canvas_height)
   hist.pack()
 
@@ -240,8 +240,8 @@ def gui_thread():
           color = "blue" if i == max_index else "red" if i == max_data_index else "#476042"
           hist.create_line(x, canvas_height, x, canvas_height - y, fill=color, width=hist_line_width)
 
-      if int(channel_sel.get()) is not channel:
-        channel = int(channel_sel.get())
+      if int(channel_sel.get()) - 1 is not channel:
+        channel = int(channel_sel.get()) - 1
         configure_rta(channel)
         #configure_rta(31) # 31: MainLR on XAIR16
 
