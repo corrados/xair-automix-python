@@ -205,11 +205,13 @@ def gui_thread():
     input_bars.append(tk.DoubleVar(window))
     ttk.Progressbar(f, orient=tk.VERTICAL, variable=input_bars[i]).pack()
 
-  tk.Label(window, text="Channel Selection:").pack(side='top')
-  channel_sel = ttk.Combobox(window)
+  f_sel = tk.Frame(window)
+  tk.Label(f_sel, text="Channel Selection:").pack(side='left')
+  channel_sel = ttk.Combobox(f_sel)
   channel_sel['values'] = [f"{x}" for x in range(1, len_meter2 + 1)]
   channel_sel.current(13)#0)
-  channel_sel.pack(side='top')
+  channel_sel.pack()
+  f_sel.pack()
   canvas_height  = 100
   rta = tk.Canvas(window, width=len_meter4 * rta_line_width + len_meter4, height=canvas_height)
   rta.pack()
