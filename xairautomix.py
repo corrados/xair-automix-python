@@ -233,9 +233,9 @@ def gui_thread():
       (max_index, max_data_index) = analyze_histogram(histograms[channel])
       hist.delete("all")
       for i in range(hist_len):
-        x = hist_line_width + i * hist_line_width + i
         max_hist = max(histograms[channel])
         if max_hist > 0:
+          x = hist_line_width + i * hist_line_width + i
           y = (histograms[channel][i] / max_hist) * canvas_height
           color = "blue" if i == max_index else "red" if i == max_data_index else "#476042"
           hist.create_line(x, canvas_height, x, canvas_height - y, fill=color, width=hist_line_width)
