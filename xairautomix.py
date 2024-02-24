@@ -38,6 +38,7 @@ channel         = -1  # initialize with invalid channel
 len_meter2      = 18  # ALL INPUTS (16 mic, 2 aux, 18 usb = 36 values total but we only need the mic inputs)
 len_meter4      = 100 # RTA100 (100 bins RTA = 100 values)
 hist_len        = 100 # histogram bins
+rta_hist_height = 120
 meter_update_s  = 0.05 # update cycle frequency for meter data is 50 ms
 rta_line_width  = 3
 hist_line_width = 3
@@ -193,11 +194,22 @@ def calc_histograms(old_values, cur_values):
 
 def gui_thread():
   global exit_threads, channel
-  window     = tk.Tk(className="XR Auto Mix")
-  input_bars = []
-  rta_bars   = []
-  inputs_f   = tk.Frame(window)
+  window      = tk.Tk(className="XR Auto Mix")
+  input_bars  = []
+  rta_bars    = []
+  buttons_f   = tk.Frame(window)
+  inputs_f    = tk.Frame(window)
+  selection_f = tk.Frame(window)
+  buttons_f.pack()
   inputs_f.pack()
+  selection_f.pack()
+
+  # buttons
+  tk.Button(buttons_f, text="Reset All",command= lambda: print("Button Reset All pressed")).pack(side='left')
+  tk.Button(buttons_f, text="Apply Gains",command= lambda: print("Button Apply Gains pressed")).pack(side='left')
+  tk.Button(buttons_f, text="Apply Faders",command= lambda: print("Button Apply Faders pressed")).pack(side='left')
+
+  # input level meters
   for i in range(len_meter2):
     f = tk.Frame(inputs_f)
     f.pack(side="left", pady='5')
@@ -205,17 +217,17 @@ def gui_thread():
     input_bars.append(tk.DoubleVar(window))
     ttk.Progressbar(f, orient=tk.VERTICAL, variable=input_bars[i]).pack()
 
-  f_sel = tk.Frame(window)
-  tk.Label(f_sel, text="Channel Selection:").pack(side='left')
-  channel_sel = ttk.Combobox(f_sel)
+  # channel selection
+  tk.Label(selection_f, text="Channel Selection:").pack(side='left')
+  channel_sel = ttk.Combobox(selection_f)
   channel_sel['values'] = [f"{x}" for x in range(1, len_meter2 + 1)]
   channel_sel.current(13)#0)
   channel_sel.pack()
-  f_sel.pack()
-  canvas_height  = 100
-  rta = tk.Canvas(window, width=len_meter4 * rta_line_width + len_meter4, height=canvas_height)
+
+  # RTA/histogram
+  rta = tk.Canvas(window, width=len_meter4 * rta_line_width + len_meter4, height=rta_hist_height)
   rta.pack()
-  hist = tk.Canvas(window, width=hist_len * hist_line_width + hist_len, height=canvas_height)
+  hist = tk.Canvas(window, width=hist_len * hist_line_width + hist_len, height=rta_hist_height)
   hist.pack()
 
   while not exit_threads:
@@ -229,8 +241,8 @@ def gui_thread():
       rta.delete("all")
       for i in range(len_meter4):
         x = rta_line_width + i * rta_line_width + i
-        y = (input_rta[i] / 128 + 1) * canvas_height
-        rta.create_line(x, canvas_height, x, canvas_height - y, fill="#476042", width=rta_line_width)
+        y = (input_rta[i] / 128 + 1) * rta_hist_height
+        rta.create_line(x, rta_hist_height, x, rta_hist_height - y, fill="#476042", width=rta_line_width)
 
       (max_index, max_data_index) = analyze_histogram(histograms[channel])
       hist.delete("all")
@@ -238,14 +250,13 @@ def gui_thread():
         max_hist = max(histograms[channel])
         if max_hist > 0:
           x = hist_line_width + i * hist_line_width + i
-          y = (histograms[channel][i] / max_hist) * canvas_height
+          y = (histograms[channel][i] / max_hist) * rta_hist_height
           color = "blue" if i == max_index else "red" if i == max_data_index else "#476042"
-          hist.create_line(x, canvas_height, x, canvas_height - y, fill=color, width=hist_line_width)
+          hist.create_line(x, rta_hist_height, x, rta_hist_height - y, fill=color, width=hist_line_width)
 
       if int(channel_sel.get()) - 1 is not channel:
         channel = int(channel_sel.get()) - 1
-        configure_rta(channel)
-        #configure_rta(31) # 31: MainLR on XAIR16
+        configure_rta(channel) # configure_rta(31) # 31: MainLR on XAIR16
 
       window.update()
       time.sleep(meter_update_s)
