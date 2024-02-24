@@ -47,24 +47,21 @@ exit_threads    = False
 file_path       = "test.dat"
 queue_len_s     = 5 * 60 # 5 minutes
 
-# create queues and fill completely with zeros for initialization
-queue_len = int(queue_len_s / meter_update_s)
+# global initializations
 all_raw_inputs_queue = deque()
-all_inputs_queue     = deque([[-200] * len_meter2] * queue_len) # using invalid initialization value of -200 dB
-rta_queue            = deque([[-200] * len_meter4] * queue_len) # using invalid initialization value of -200 dB
-histograms           = [[0] * hist_len for i in range(len_meter2)]
 queue_mutex          = threading.Lock()
 
 
 def main():
   global found_addr, found_port, fader_init_val, bus_init_val, mixer, is_XR16
+  reset_buffers()
 
   # search for a mixer and initialize the connection to the mixer
   addr_subnet = search_mixer()
-  mixer   = x32.BehringerX32(f"{addr_subnet}.{found_addr}", local_port, False, 10, found_port)
-  is_XR16 = "XR16" in mixer.get_value("/info")[2]
+  mixer       = x32.BehringerX32(f"{addr_subnet}.{found_addr}", local_port, False, 10, found_port)
+  is_XR16     = "XR16" in mixer.get_value("/info")[2]
 
-  #basic_setup_mixer(mixer)
+  #basic_setup_mixer(mixer) # TODO introduce a button in the GUI for this
 
   # start separate threads
   threading.Timer(0.0, send_meters_request_message).start()
@@ -181,6 +178,15 @@ def analyze_histogram(histogram):
   return (max_index, max_data_index)
 
 
+def reset_buffers():
+  global all_inputs_queue, rta_queue, histograms
+  with queue_mutex:
+    queue_len        = int(queue_len_s / meter_update_s)
+    all_inputs_queue = deque([[-200] * len_meter2] * queue_len) # using invalid initialization value of -200 dB
+    rta_queue        = deque([[-200] * len_meter4] * queue_len) # using invalid initialization value of -200 dB
+    histograms       = [[0] * hist_len for i in range(len_meter2)]
+
+
 def calc_histograms(old_values, cur_values):
   for i in range(len_meter2):
     old_value = old_values[i]
@@ -205,7 +211,7 @@ def gui_thread():
   selection_f.pack()
 
   # buttons
-  tk.Button(buttons_f, text="Reset All",command= lambda: print("Button Reset All pressed")).pack(side='left')
+  tk.Button(buttons_f, text="Reset Buffers",command= lambda: reset_buffers()).pack(side='left')
   tk.Button(buttons_f, text="Apply Gains",command= lambda: print("Button Apply Gains pressed")).pack(side='left')
   tk.Button(buttons_f, text="Apply Faders",command= lambda: print("Button Apply Faders pressed")).pack(side='left')
 
