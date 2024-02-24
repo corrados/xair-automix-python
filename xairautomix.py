@@ -166,8 +166,9 @@ def receive_meter_messages():
             rta_queue.popleft()
             rta_queue.append(values)
     else:
-      # no meters message, put it back on queue
+      # no meters message, put it back on queue and give other thread some time to process message
       mixer.put_msg_on_queue(cur_message)
+      time.sleep(0.02)
 
 
 def analyze_histogram(histogram):
@@ -233,9 +234,11 @@ def gui_thread():
       hist.delete("all")
       for i in range(hist_len):
         x = hist_line_width + i * hist_line_width + i
-        y = (histograms[channel][i] / max(histograms[channel])) * canvas_height
-        color = "blue" if i == max_index else "red" if i == max_data_index else "#476042"
-        hist.create_line(x, canvas_height, x, canvas_height - y, fill=color, width=hist_line_width)
+        max_hist = max(histograms[channel])
+        if max_hist > 0:
+          y = (histograms[channel][i] / max_hist) * canvas_height
+          color = "blue" if i == max_index else "red" if i == max_data_index else "#476042"
+          hist.create_line(x, canvas_height, x, canvas_height - y, fill=color, width=hist_line_width)
 
       if int(channel_sel.get()) is not channel:
         channel = int(channel_sel.get())
