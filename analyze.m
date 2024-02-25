@@ -14,24 +14,15 @@
 % this program; if not, write to the Free Software Foundation, Inc.,
 % 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
 %*******************************************************************************
+function analyze()
 
-% read test data, channels:
-% 1: click
-% 2: E-Git Mono
-% 3: Stefan
-% 4: Miguel
-% 5: Chris
-% 6: E-Bass
-% 7: E-Git L
-% 8: E-Git R
-% 9: A-Git
-% 10: Kick
-% 11: Snare
-% 12: Tom1
-% 13: Tom2
-% 14: Overhead
-% 15: E-Drum L
-% 16: E-Drum R
+close all;
+
+channel_names = {'click', 'E-Git Mono', 'Stefan', 'Miguel', 'Chris', ...
+  'E-Bass', 'E-Git L', 'E-Git R', 'A-Git', 'Kick', 'Snare', 'Tom1', 'Tom2', ...
+  'Overhead', 'E-Drum L', 'E-Drum R'};
+
+% read test data
 h = fopen('test.dat', 'rb');
 all_x = fread(h, Inf, 'int16');
 fclose(h);
@@ -39,8 +30,15 @@ fclose(h);
 % create matrix with all the different input channels
 all_x = reshape(all_x, 18, []) / 256; % scale to dB
 
+for channel = 1:16
+  analyze_channel(all_x, channel, channel_names{channel})
+end
+
+end
+
+function analyze_channel(all_x, channel, name)
+
 % analyze selected channel
-channel  = 15; % channel selection
 hist_len = 100;
 x = all_x(channel, :).';
 
@@ -52,10 +50,12 @@ index_value_above_threshold = find(hist_y > 0.05);
 max_dB = hist_x(index_value_above_threshold(end));
 
 % plot data
-close all;
+figure;
 subplot(2, 1, 1); plot(x); grid on;
-ylabel('dB'); title(['Input Level of Channel ' num2str(channel)])
+ylabel('dB'); title(['Input Level of Channel ' num2str(channel) ', ' name])
 subplot(2, 1, 2); bar(hist_x, hist_y); xlim([-128, 0]); grid on;
 xlabel('dB'); ylabel('%'); title(['Histogram, max ' num2str(max_dB) ' dB'])
+
+end
 
 
