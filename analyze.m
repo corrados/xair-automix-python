@@ -40,17 +40,22 @@ fclose(h);
 all_x = reshape(all_x, 18, []) / 256; % scale to dB
 
 % analyze selected channel
-channel  = 15 % channel selection
-hist_len = 100
+channel  = 15; % channel selection
+hist_len = 100;
 x = all_x(channel, :).';
 
-hist_y = hist(x, hist_len);
-hist_y = hist_y / max(hist_y) * 100; % convert to percent
 hist_x = (0:99) * 129 / hist_len - 128; % according to xairautomix.py
+hist_y = hist(x, hist_x);
+hist_y = hist_y / max(hist_y) * 100; % convert to percent
+
+index_value_above_threshold = find(hist_y > 0.05);
+max_dB = hist_x(index_value_above_threshold(end));
 
 % plot data
 close all;
-subplot(2, 1, 1); plot(x); grid on; title('raw data')
-subplot(2, 1, 2); bar(hist_x, hist_y); grid on; xlim([-128, 0]); title('histogram')
+subplot(2, 1, 1); plot(x); grid on;
+ylabel('dB'); title(['Input Level of Channel ' num2str(channel)])
+subplot(2, 1, 2); bar(hist_x, hist_y); xlim([-128, 0]); grid on;
+xlabel('dB'); ylabel('%'); title(['Histogram, max ' num2str(max_dB) ' dB'])
 
 
