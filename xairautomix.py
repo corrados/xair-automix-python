@@ -47,6 +47,10 @@ exit_threads    = False
 file_path       = "test.dat"
 queue_len_s     = 5 * 60 # 5 minutes
 
+# TEST
+use_recorded_data = True
+
+
 # global initializations
 all_raw_inputs_queue = deque()
 queue_mutex          = threading.Lock()
@@ -137,8 +141,16 @@ def send_meters_request_message():
     if not exit_threads: time.sleep(1) # every second update meters request
 
 
+# TEST
+if use_recorded_data:
+  f = open("_test.dat", mode="rb")
+  data1 = np.reshape(np.fromfile(f, dtype=np.int16), (-1, 18))
+  count = 100000
+  f.close()
+
+
 def receive_meter_messages():
-  global mixer
+  global mixer, count
   while not exit_threads:
     cur_message = mixer.get_msg_from_queue()
     mixer_cmd   = cur_message.address
@@ -157,6 +169,12 @@ def receive_meter_messages():
 
         with queue_mutex:
           if mixer_cmd == "/meters/2":
+
+            # TEST NOTE: "global count" can be removed as soon as the TEST code is removed
+            if use_recorded_data:
+              values = data1[count] / 256
+              count += 1
+
             all_raw_inputs_queue.append(raw_values[0:len_meter2])
             old_values = all_inputs_queue.popleft()
             cur_values = values[0:len_meter2]
@@ -175,7 +193,12 @@ def analyze_histogram(histogram):
   max_index      = np.argmax(histogram)
   max_data_index = len(histogram) - 1 # start value
   while histogram[max_data_index] == 0 and max_data_index > 0: max_data_index -= 1
-  return (max_index, max_data_index)
+  max_hist = max(histograms[channel])
+  if max_hist > 0:
+    histogram_normalized = [x / max_hist for x in histograms[channel]]
+  else:
+    histogram_normalized = [0] * len(histogram)
+  return (histogram_normalized, max_index, max_data_index)
 
 
 def reset_buffers():
@@ -250,15 +273,13 @@ def gui_thread():
         y = (input_rta[i] / 128 + 1) * rta_hist_height
         rta.create_line(x, rta_hist_height, x, rta_hist_height - y, fill="#476042", width=rta_line_width)
 
-      (max_index, max_data_index) = analyze_histogram(histograms[channel])
+      (histogram_normalized, max_index, max_data_index) = analyze_histogram(histograms[channel])
       hist.delete("all")
       for i in range(hist_len):
-        max_hist = max(histograms[channel])
-        if max_hist > 0:
-          x = hist_line_width + i * hist_line_width + i
-          y = (histograms[channel][i] / max_hist) * rta_hist_height
-          color = "blue" if i == max_index else "red" if i == max_data_index else "#476042"
-          hist.create_line(x, rta_hist_height, x, rta_hist_height - y, fill=color, width=hist_line_width)
+        x = hist_line_width + i * hist_line_width + i
+        y = histogram_normalized[i] * rta_hist_height
+        color = "blue" if i == max_index else "red" if i == max_data_index else "#476042"
+        hist.create_line(x, rta_hist_height, x, rta_hist_height - y, fill=color, width=hist_line_width)
 
       if int(channel_sel.get()) - 1 is not channel:
         channel = int(channel_sel.get()) - 1

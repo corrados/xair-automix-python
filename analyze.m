@@ -30,6 +30,10 @@ fclose(h);
 % create matrix with all the different input channels
 all_x = reshape(all_x, 18, []) / 256; % scale to dB
 
+% TEST remove initialization phase
+size(all_x)
+all_x = all_x(:, 50000:end);
+
 for channel = 1:16
   analyze_channel(all_x, channel, channel_names{channel})
 end
