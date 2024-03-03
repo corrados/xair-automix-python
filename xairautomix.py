@@ -49,16 +49,16 @@ channel_dict = { 0:["Click",      0, special, ["NOMIX"]], \
                  3:["Miguel",     0, vocal], \
                  4:["Chris",      0, vocal], \
                  5:["Bass",       0, bass], \
-                 6:["E-Git L",    0, guitar, ["LINK"]], \
-                 7:["E-Git R",    0, guitar], \
+                 6:["E-Git L",    0, guitar], \
+                 7:["E-Git R",    0, guitar, ["LINK"]], \
                  8:["A-Git",      0, guitar], \
                  9:["Kick",       0, drums, ["PHANT"]], \
                 10:["Snare",      0, drums], \
                 11:["Tom1",       0, drums], \
                 12:["Tom2",       0, drums], \
                 13:["Overhead",   0, drums, ["PHANT"]], \
-                14:["E-Drum L",   0, edrums, ["LINK"]], \
-                15:["E-Drum R",   0, edrums]}
+                14:["E-Drum L",   0, edrums], \
+                15:["E-Drum R",   0, edrums, ["LINK"]]}
 
 local_port      = 10300
 found_addr      = -1
@@ -111,6 +111,13 @@ def basic_setup_mixer(mixer):
       mixer.set_value(f"/ch/{ch + 1:#02}/mix/lr", [1], True)       # default: send to LR master
       mixer.set_value(f"/headamp/{ch + 1:#02}/phantom", [0], True) # default: no phantom power
       mixer.set_value(f"/ch/{ch + 1:#02}/mix/pan", [0.5], True)    # default: middle position per default
+      mixer.set_value(f"/ch/{ch + 1:#02}/gate/on", [0], True)      # default: gate off
+      mixer.set_value(f"/ch/{ch + 1:#02}/dyn/on", [0], True)       # default: compressor off
+      mixer.set_value(f"/ch/{ch + 1:#02}/eq/on", [1], True)        # default: EQ on
+      mixer.set_value(f"/ch/{ch + 1:#02}/preamp/hpon", [0], True)  # default: high-pass off
+      for i in range(4):
+        mixer.set_value(f"/ch/{ch + 1:#02}/eq/{i + 1}/type", [2], True) # default: EQ, PEQ
+        mixer.set_value(f"/ch/{ch + 1:#02}/eq/{i + 1}/g", [0.5], True)  # default: EQ, 0 dB gain
       if ch % 2 == 0:
         mixer.set_value(f"/config/chlink/{ch + 1}-{ch + 2}", [0], True) # default: no stereo link
       if len(channel_dict[ch]) > 3: # special channel settings
@@ -118,8 +125,8 @@ def basic_setup_mixer(mixer):
           mixer.set_value(f"/ch/{ch + 1:#02}/mix/lr", [0], True)
         if "PHANT" in channel_dict[ch][3]:
           mixer.set_value(f"/headamp/{ch + 1:#02}/phantom", [1], True)
-        if "LINK" in channel_dict[ch][3] and ch % 2 == 0:
-          mixer.set_value(f"/config/chlink/{ch + 1}-{ch + 2}", [1], True)
+        if "LINK" in channel_dict[ch][3] and ch % 2 == 1:
+          mixer.set_value(f"/config/chlink/{ch}-{ch + 1}", [1], True)
 
 
 def configure_rta(channel):
