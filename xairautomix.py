@@ -40,7 +40,7 @@ found_addr      = -1
 channel         = -1  # initialize with invalid channel
 len_meter2      = 18  # ALL INPUTS (16 mic, 2 aux, 18 usb = 36 values total but we only need the mic inputs)
 len_meter4      = 100 # RTA100 (100 bins RTA = 100 values)
-hist_len        = 100 # histogram bins
+hist_len        = 128 # histogram bins
 rta_hist_height = 120
 meter_update_s  = 0.05 # update cycle frequency for meter data is 50 ms
 rta_line_width  = 3
@@ -196,7 +196,7 @@ def analyze_histogram(histogram):
   max_index      = np.argmax(histogram)
   max_data_index = len(histogram) - 1 # start value
   while histogram[max_data_index] == 0 and max_data_index > 0: max_data_index -= 1
-  max_data_value = max_data_index / hist_len * 129 - 128
+  max_data_value = int(max_data_index / hist_len * 129 - 128)
   max_hist = max(histograms[channel])
   if max_hist > 0:
     histogram_normalized = [x / max_hist for x in histograms[channel]]
@@ -274,7 +274,7 @@ def gui_thread():
       for i in range(len_meter2):
         input_bars[i].set((input_values[i] / 128 + 1) * 100)
         (histogram_normalized, max_index, max_data_index, max_data_value) = analyze_histogram(histograms[i])
-        max_input_level[i].set("{:.1f}".format(max_data_value))
+        max_input_level[i].set(max_data_value)
 
       rta.delete("all")
       for i in range(len_meter4):
