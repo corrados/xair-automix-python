@@ -227,13 +227,14 @@ def reset_buffers():
 
 def gui_thread():
   global exit_threads, channel
-  window          = tk.Tk(className="XR Auto Mix")
-  input_bars      = []
-  max_input_level = []
-  rta_bars        = []
-  buttons_f       = tk.Frame(window)
-  inputs_f        = tk.Frame(window)
-  selection_f     = tk.Frame(window)
+  window       = tk.Tk(className="XR Auto Mix")
+  window_color = window.cget("bg")
+  input_bars   = []
+  input_labels = []
+  rta_bars     = []
+  buttons_f    = tk.Frame(window)
+  inputs_f     = tk.Frame(window)
+  selection_f  = tk.Frame(window)
   buttons_f.pack()
   inputs_f.pack()
   selection_f.pack()
@@ -250,8 +251,8 @@ def gui_thread():
     tk.Label(f, text=f"L{i + 1:^2}").pack()
     input_bars.append(tk.DoubleVar(window))
     ttk.Progressbar(f, orient=tk.VERTICAL, variable=input_bars[i]).pack()
-    max_input_level.append(tk.StringVar(window))
-    tk.Label(f, textvariable = max_input_level[i]).pack()
+    input_labels.append(tk.Label(f))
+    input_labels[i].pack()
 
   # channel selection
   tk.Label(selection_f, text="Channel Selection:").pack(side='left')
@@ -274,7 +275,13 @@ def gui_thread():
       for i in range(len_meter2):
         input_bars[i].set((input_values[i] / 128 + 1) * 100)
         (histogram_normalized, max_index, max_data_index, max_data_value) = analyze_histogram(histograms[i])
-        max_input_level[i].set(max_data_value)
+        if max_data_value > -12:
+          input_labels[i].config(text=max_data_value, bg="red")
+        else:
+          if max_data_value > -18:
+            input_labels[i].config(text=max_data_value, bg="yellow")
+          else:
+            input_labels[i].config(text=max_data_value, bg=window_color)
 
       rta.delete("all")
       for i in range(len_meter4):
