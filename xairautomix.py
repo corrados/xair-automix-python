@@ -53,6 +53,29 @@ queue_len_s     = 5 * 60 # 5 minutes
 # TEST
 use_recorded_data = True
 
+vocal   = [ 9 - 8]
+guitar  = [11 - 8]
+bass    = [10 - 8]
+edrums  = [13 - 8]
+drums   = [12 - 8]
+special = [0]
+channel_dict = { 0:["Click",      0, special, ["NOMIX"]], \
+                 1:["E-Git Mono", 0, guitar], \
+                 2:["Stefan",     0, vocal], \
+                 3:["Miguel",     0, vocal], \
+                 4:["Chris",      0, vocal], \
+                 5:["Bass",       0, bass], \
+                 6:["E-Git L",    0, guitar], \
+                 7:["E-Git R",    0, guitar], \
+                 8:["A-Git",      0, guitar], \
+                 9:["Kick",       0, drums, ["PHANT"]], \
+                10:["Snare",      0, drums], \
+                11:["Tom1",       0, drums], \
+                12:["Tom2",       0, drums], \
+                13:["Overhead",   0, drums, ["PHANT"]], \
+                14:["E-Drum L",   0, edrums], \
+                15:["E-Drum R",   0, edrums]}
+
 
 # global initializations
 all_raw_inputs_queue = deque()
@@ -78,28 +101,6 @@ def main():
 
 
 def basic_setup_mixer(mixer):
-  vocal   = [ 9 - 8]
-  guitar  = [11 - 8]
-  bass    = [10 - 8]
-  edrums  = [13 - 8]
-  drums   = [12 - 8]
-  special = [0]
-  channel_dict = { 0:["Click",      0, special, ["NOMIX"]], \
-                   1:["E-Git Mono", 0, guitar], \
-                   2:["Stefan",     0, vocal], \
-                   3:["Miguel",     0, vocal], \
-                   4:["Chris",      0, vocal], \
-                   5:["Bass",       0, bass], \
-                   6:["E-Git L",    0, guitar], \
-                   7:["E-Git R",    0, guitar], \
-                   8:["A-Git",      0, guitar], \
-                   9:["Kick",       0, drums, ["PHANT"]], \
-                  10:["Snare",      0, drums], \
-                  11:["Tom1",       0, drums], \
-                  12:["Tom2",       0, drums], \
-                  13:["Overhead",   0, drums, ["PHANT"]], \
-                  14:["E-Drum L",   0, edrums], \
-                  15:["E-Drum R",   0, edrums]}
   for ch in channel_dict:
     inst_group = channel_dict[ch][2]
     mixer.set_value(f"/ch/{ch + 1:#02}/config/color", [inst_group[0]], True)
@@ -248,7 +249,10 @@ def gui_thread():
   for i in range(len_meter2):
     f = tk.Frame(inputs_f)
     f.pack(side="left", pady='5')
-    tk.Label(f, text=f"L{i + 1:^2}").pack()
+    if i < len(channel_dict):
+      tk.Label(f, text=f"L{i + 1:^2}\n{channel_dict[i][0]} |").pack()
+    else:
+      tk.Label(f, text=f"L{i + 1:^2}\n").pack()
     input_bars.append(tk.DoubleVar(window))
     ttk.Progressbar(f, orient=tk.VERTICAL, variable=input_bars[i]).pack()
     input_labels.append(tk.Label(f))
