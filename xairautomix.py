@@ -34,6 +34,31 @@ import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 import tkinter as tk
 from tkinter import ttk
+from tkinter.messagebox import askyesno
+
+# custom mixer channel setup
+vocal   = [ 9 - 8]
+guitar  = [11 - 8]
+bass    = [10 - 8]
+edrums  = [13 - 8]
+drums   = [12 - 8]
+special = [0]
+channel_dict = { 0:["Click",      0, special, ["NOMIX"]], \
+                 1:["E-Git Mono", 0, guitar], \
+                 2:["Stefan",     0, vocal], \
+                 3:["Miguel",     0, vocal], \
+                 4:["Chris",      0, vocal], \
+                 5:["Bass",       0, bass], \
+                 6:["E-Git L",    0, guitar, ["LINK"]], \
+                 7:["E-Git R",    0, guitar], \
+                 8:["A-Git",      0, guitar], \
+                 9:["Kick",       0, drums, ["PHANT"]], \
+                10:["Snare",      0, drums], \
+                11:["Tom1",       0, drums], \
+                12:["Tom2",       0, drums], \
+                13:["Overhead",   0, drums, ["PHANT"]], \
+                14:["E-Drum L",   0, edrums, ["LINK"]], \
+                15:["E-Drum R",   0, edrums]}
 
 local_port      = 10300
 found_addr      = -1
@@ -53,29 +78,6 @@ queue_len_s     = 5 * 60 # 5 minutes
 # TEST
 use_recorded_data = True
 
-vocal   = [ 9 - 8]
-guitar  = [11 - 8]
-bass    = [10 - 8]
-edrums  = [13 - 8]
-drums   = [12 - 8]
-special = [0]
-channel_dict = { 0:["Click",      0, special, ["NOMIX"]], \
-                 1:["E-Git Mono", 0, guitar], \
-                 2:["Stefan",     0, vocal], \
-                 3:["Miguel",     0, vocal], \
-                 4:["Chris",      0, vocal], \
-                 5:["Bass",       0, bass], \
-                 6:["E-Git L",    0, guitar], \
-                 7:["E-Git R",    0, guitar], \
-                 8:["A-Git",      0, guitar], \
-                 9:["Kick",       0, drums, ["PHANT"]], \
-                10:["Snare",      0, drums], \
-                11:["Tom1",       0, drums], \
-                12:["Tom2",       0, drums], \
-                13:["Overhead",   0, drums, ["PHANT"]], \
-                14:["E-Drum L",   0, edrums], \
-                15:["E-Drum R",   0, edrums]}
-
 
 # global initializations
 all_raw_inputs_queue = deque()
@@ -91,8 +93,6 @@ def main():
   mixer       = x32.BehringerX32(f"{addr_subnet}.{found_addr}", local_port, False, 10, found_port)
   is_XR16     = "XR16" in mixer.get_value("/info")[2]
 
-  #basic_setup_mixer(mixer) # TODO introduce a button in the GUI for this
-
   # start separate threads
   threading.Timer(0.0, send_meters_request_message).start()
   threading.Timer(0.0, receive_meter_messages).start()
@@ -101,23 +101,25 @@ def main():
 
 
 def basic_setup_mixer(mixer):
-  for ch in channel_dict:
-    inst_group = channel_dict[ch][2]
-    mixer.set_value(f"/ch/{ch + 1:#02}/config/color", [inst_group[0]], True)
-    mixer.set_value(f"/ch/{ch + 1:#02}/config/name", [channel_dict[ch][0]], True)
-    set_gain(ch, channel_dict[ch][1])
-    mixer.set_value(f"/ch/{ch + 1:#02}/mix/lr", [1], True)       # default: send to LR master
-    mixer.set_value(f"/headamp/{ch + 1:#02}/phantom", [0], True) # default: no phantom power
-    mixer.set_value(f"/ch/{ch + 1:#02}/mix/pan", [0.5], True)    # default: middle position per default
-    if len(channel_dict[ch]) > 3: # special channel settings
-      if "NOMIX" in channel_dict[ch][3]:
-        mixer.set_value(f"/ch/{ch + 1:#02}/mix/lr", [0], True)
-      if "PHANT" in channel_dict[ch][3]:
-        mixer.set_value(f"/headamp/{ch + 1:#02}/phantom", [1], True)
-
-  # stereo link E-Git and E-Drum
-  mixer.set_value("/config/chlink/7-8", [1], True)   # stereo E-Git
-  mixer.set_value("/config/chlink/15-16", [1], True) # stereo E-Drums
+  if askyesno(message='Are you sure to reset all mixer settings?'):
+    for ch in channel_dict:
+      inst_group = channel_dict[ch][2]
+      mixer.set_value(f"/ch/{ch + 1:#02}/config/color", [inst_group[0]], True)
+      mixer.set_value(f"/ch/{ch + 1:#02}/config/name", [channel_dict[ch][0]], True)
+      mixer.set_value(f"/ch/{ch + 1:#02}/config/insrc", [ch], True) # linear in/out mapping
+      channel_dict[ch][1] = get_gain(ch)
+      mixer.set_value(f"/ch/{ch + 1:#02}/mix/lr", [1], True)       # default: send to LR master
+      mixer.set_value(f"/headamp/{ch + 1:#02}/phantom", [0], True) # default: no phantom power
+      mixer.set_value(f"/ch/{ch + 1:#02}/mix/pan", [0.5], True)    # default: middle position per default
+      if ch % 2 == 0:
+        mixer.set_value(f"/config/chlink/{ch + 1}-{ch + 2}", [0], True) # default: no stereo link
+      if len(channel_dict[ch]) > 3: # special channel settings
+        if "NOMIX" in channel_dict[ch][3]:
+          mixer.set_value(f"/ch/{ch + 1:#02}/mix/lr", [0], True)
+        if "PHANT" in channel_dict[ch][3]:
+          mixer.set_value(f"/headamp/{ch + 1:#02}/phantom", [1], True)
+        if "LINK" in channel_dict[ch][3] and ch % 2 == 0:
+          mixer.set_value(f"/config/chlink/{ch + 1}-{ch + 2}", [1], True)
 
 
 def configure_rta(channel):
@@ -125,6 +127,13 @@ def configure_rta(channel):
   mixer.set_value("/-prefs/rta/decay", [0], True)       # fastest possible decay
   mixer.set_value("/-prefs/rta/det", [0], True)         # 0: peak, 1: RMS
   mixer.set_value("/-stat/rta/source", [channel], True) # note: zero-based channel number
+
+
+def get_gain(ch):
+  if ch >= 8 and is_XR16:
+    return mixer.get_value(f"/headamp/{ch + 9:#02}/gain")[0] * (20 - (-12)) - 12
+  else:
+    return mixer.get_value(f"/headamp/{ch + 1:#02}/gain")[0] * (60 - (-12)) - 12
 
 
 def set_gain(ch, x):
@@ -241,9 +250,10 @@ def gui_thread():
   selection_f.pack()
 
   # buttons
-  tk.Button(buttons_f, text="Reset Buffers",command= lambda: reset_buffers()).pack(side='left')
-  tk.Button(buttons_f, text="Apply Gains",command= lambda: print("Button Apply Gains pressed")).pack(side='left')
-  tk.Button(buttons_f, text="Apply Faders",command= lambda: print("Button Apply Faders pressed")).pack(side='left')
+  tk.Button(buttons_f, text="Reset Buffers",command=lambda: reset_buffers()).pack(side='left')
+  tk.Button(buttons_f, text="Apply Gains",command=lambda: print("Button Apply Gains pressed")).pack(side='left')
+  tk.Button(buttons_f, text="Apply Faders",command=lambda: print("Button Apply Faders pressed")).pack(side='left')
+  tk.Button(buttons_f, text="Reset All",command=lambda: basic_setup_mixer(mixer)).pack(side='left')
 
   # input level meters
   for i in range(len_meter2):
