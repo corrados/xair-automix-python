@@ -103,14 +103,19 @@ def main():
 def basic_setup_mixer(mixer):
   if askyesno(message='Are you sure to reset all mixer settings?'):
     for ch in channel_dict:
-      inst_group = channel_dict[ch][2]
+      inst_group          = channel_dict[ch][2]
+      channel_dict[ch][1] = get_gain(ch) # preserve given gain
       mixer.set_value(f"/ch/{ch + 1:#02}/config/color", [inst_group[0]], True)
       mixer.set_value(f"/ch/{ch + 1:#02}/config/name", [channel_dict[ch][0]], True)
       mixer.set_value(f"/ch/{ch + 1:#02}/config/insrc", [ch], True) # linear in/out mapping
-      channel_dict[ch][1] = get_gain(ch)
       mixer.set_value(f"/ch/{ch + 1:#02}/mix/lr", [1], True)       # default: send to LR master
+      mixer.set_value(f"/ch/{ch + 1:#02}/mix/on", [1], True)       # default: unmute channel
+      mixer.set_value(f"/ch/{ch + 1:#02}/grp/mute", [0], True)     # default: no mute group
+      mixer.set_value(f"/-stat/solosw/{ch + 1:#02}", [0], True)    # default: no Solo
+      mixer.set_value(f"/ch/{ch + 1:#02}/grp/dca", [0], True)      # default: no DCA group
+      mixer.set_value(f"/ch/{ch + 1:#02}/mix/fader", [0], True)    # default: fader to lowest value
       mixer.set_value(f"/headamp/{ch + 1:#02}/phantom", [0], True) # default: no phantom power
-      mixer.set_value(f"/ch/{ch + 1:#02}/mix/pan", [0.5], True)    # default: middle position per default
+      mixer.set_value(f"/ch/{ch + 1:#02}/mix/pan", [0.5], True)    # default: middle position
       mixer.set_value(f"/ch/{ch + 1:#02}/gate/on", [0], True)      # default: gate off
       mixer.set_value(f"/ch/{ch + 1:#02}/dyn/on", [0], True)       # default: compressor off
       mixer.set_value(f"/ch/{ch + 1:#02}/eq/on", [1], True)        # default: EQ on
@@ -118,6 +123,8 @@ def basic_setup_mixer(mixer):
       for i in range(4):
         mixer.set_value(f"/ch/{ch + 1:#02}/eq/{i + 1}/type", [2], True) # default: EQ, PEQ
         mixer.set_value(f"/ch/{ch + 1:#02}/eq/{i + 1}/g", [0.5], True)  # default: EQ, 0 dB gain
+      for i in range(9):
+        mixer.set_value(f"/ch/{ch + 1:#02}/mix/0{i + 1}/level", [0], True) # default: sends to lowest value
       if ch % 2 == 0:
         mixer.set_value(f"/config/chlink/{ch + 1}-{ch + 2}", [0], True) # default: no stereo link
       if len(channel_dict[ch]) > 3: # special channel settings
