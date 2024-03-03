@@ -152,9 +152,9 @@ def get_gain(ch):
 
 def set_gain(ch, x):
   if ch >= 8 and is_XR16:
-    mixer.set_value(f"/headamp/{ch + 9:#02}/gain", [(x + 12) / (20 - (-12))], False) # TODO rounding issue with readback
+    mixer.set_value(f"/headamp/{ch + 9:#02}/gain", [(x + 12) / (20 - (-12))], True)
   else:
-    mixer.set_value(f"/headamp/{ch + 1:#02}/gain", [(x + 12) / (60 - (-12))], False) # TODO rounding issue with readback
+    mixer.set_value(f"/headamp/{ch + 1:#02}/gain", [(x + 12) / (60 - (-12))], True)
 
 
 def send_meters_request_message():
