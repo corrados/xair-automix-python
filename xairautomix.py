@@ -69,7 +69,8 @@ rta_hist_height  = 120
 meter_update_s   = 0.05 # update cycle frequency for meter data is 50 ms
 rta_line_width   = 3
 hist_line_width  = 3
-target_max_gain  = -12 # dB
+target_max_gain  = -15 # dB
+input_threshold  = -50 # dB
 max_allowed_gain = 40 # dB
 is_XR16          = False
 exit_threads     = False
@@ -77,7 +78,7 @@ file_path        = "test.dat"
 queue_len_s      = 5 * 60 # 5 minutes
 
 # TEST
-use_recorded_data = True
+use_recorded_data = False
 
 
 # global initializations
@@ -111,7 +112,7 @@ def set_gains():
       if i < len(channel_dict):
         (histogram_normalized, max_index, max_data_index, max_data_value) = analyze_histogram(histograms[i])
         new_gain = round((channel_dict[i][1] - (max_data_value - target_max_gain)) * 2) / 2 # round to 0.5
-        if new_gain < max_allowed_gain:
+        if new_gain < max_allowed_gain and max_data_value > input_threshold:
           channel_dict[i][1] = set_gain(i, new_gain)
         else:
           channel_dict[i][1] = set_gain(i, 0) # in case channel is not connected, set to 0 dB input gain
@@ -142,8 +143,8 @@ def basic_setup_mixer(mixer):
         mixer.set_value(f"/ch/{ch + 1:#02}/eq/{i + 1}/g", [0.5], True)  # default: EQ, 0 dB gain
       for i in range(9):
         mixer.set_value(f"/ch/{ch + 1:#02}/mix/0{i + 1}/level", [0], True) # default: sends to lowest value
-      if ch % 2 == 0:
-        mixer.set_value(f"/config/chlink/{ch + 1}-{ch + 2}", [0], True) # default: no stereo link
+      if ch % 2 == 1:
+        mixer.set_value(f"/config/chlink/{ch}-{ch + 1}", [0], True) # default: no stereo link
       if len(channel_dict[ch]) > 3: # special channel settings
         if "NOMIX" in channel_dict[ch][3]:
           mixer.set_value(f"/ch/{ch + 1:#02}/mix/lr", [0], True)
@@ -193,7 +194,7 @@ def send_meters_request_message():
 if use_recorded_data:
   f = open("_test.dat", mode="rb")
   data1 = np.reshape(np.fromfile(f, dtype=np.int16), (-1, 18))
-  count = 110000
+  count = 60000
   f.close()
 
 
@@ -324,10 +325,10 @@ def gui_thread():
       for i in range(len_meter2):
         input_bars[i].set((input_values[i] / 128 + 1) * 100)
         (histogram_normalized, max_index, max_data_index, max_data_value) = analyze_histogram(histograms[i])
-        if max_data_value > -12:
+        if max_data_value > target_max_gain + 6:
           input_labels[i].config(text=max_data_value, bg="red")
         else:
-          if max_data_value > -18:
+          if max_data_value > target_max_gain:
             input_labels[i].config(text=max_data_value, bg="yellow")
           else:
             input_labels[i].config(text=max_data_value, bg=window_color)
