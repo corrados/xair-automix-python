@@ -34,7 +34,6 @@ import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 import tkinter as tk
 from tkinter import ttk
-from tkinter.messagebox import askyesno
 
 # custom mixer channel setup
 vocal   = [ 9 - 8]
@@ -60,20 +59,22 @@ channel_dict = { 0:["Click",      0, special, ["NOMIX"]], \
                 14:["E-Drum L",   0, edrums], \
                 15:["E-Drum R",   0, edrums, ["LINK"]]}
 
-local_port      = 10300
-found_addr      = -1
-channel         = -1  # initialize with invalid channel
-len_meter2      = 18  # ALL INPUTS (16 mic, 2 aux, 18 usb = 36 values total but we only need the mic inputs)
-len_meter4      = 100 # RTA100 (100 bins RTA = 100 values)
-hist_len        = 128 # histogram bins
-rta_hist_height = 120
-meter_update_s  = 0.05 # update cycle frequency for meter data is 50 ms
-rta_line_width  = 3
-hist_line_width = 3
-is_XR16         = False
-exit_threads    = False
-file_path       = "test.dat"
-queue_len_s     = 5 * 60 # 5 minutes
+local_port       = 10300
+found_addr       = -1
+channel          = -1  # initialize with invalid channel
+len_meter2       = 18  # ALL INPUTS (16 mic, 2 aux, 18 usb = 36 values total but we only need the mic inputs)
+len_meter4       = 100 # RTA100 (100 bins RTA = 100 values)
+hist_len         = 128 # histogram bins
+rta_hist_height  = 120
+meter_update_s   = 0.05 # update cycle frequency for meter data is 50 ms
+rta_line_width   = 3
+hist_line_width  = 3
+target_max_gain  = -12 # dB
+max_allowed_gain = 40 # dB
+is_XR16          = False
+exit_threads     = False
+file_path        = "test.dat"
+queue_len_s      = 5 * 60 # 5 minutes
 
 # TEST
 use_recorded_data = True
@@ -93,6 +94,10 @@ def main():
   mixer       = x32.BehringerX32(f"{addr_subnet}.{found_addr}", local_port, False, 10, found_port)
   is_XR16     = "XR16" in mixer.get_value("/info")[2]
 
+  # get current input gains
+  for ch in channel_dict:
+    channel_dict[ch][1] = get_gain(ch)
+
   # start separate threads
   threading.Timer(0.0, send_meters_request_message).start()
   threading.Timer(0.0, receive_meter_messages).start()
@@ -100,11 +105,23 @@ def main():
   threading.Timer(0.0, gui_thread).start()
 
 
+def set_gains():
+  with queue_mutex:
+    for i in range(len_meter2):
+      if i < len(channel_dict):
+        (histogram_normalized, max_index, max_data_index, max_data_value) = analyze_histogram(histograms[i])
+        new_gain = round((channel_dict[i][1] - (max_data_value - target_max_gain)) * 2) / 2 # round to 0.5
+        if new_gain < max_allowed_gain:
+          channel_dict[i][1] = set_gain(i, new_gain)
+        else:
+          channel_dict[i][1] = set_gain(i, 0) # in case channel is not connected, set to 0 dB input gain
+  reset_buffers() # history needs to be reset on updated gain settings
+
+
 def basic_setup_mixer(mixer):
-  if askyesno(message='Are you sure to reset all mixer settings?'):
+  if tk.messagebox.askyesno(message='Are you sure to reset all mixer settings?'):
     for ch in channel_dict:
-      inst_group          = channel_dict[ch][2]
-      channel_dict[ch][1] = get_gain(ch) # preserve given gain
+      inst_group = channel_dict[ch][2]
       mixer.set_value(f"/ch/{ch + 1:#02}/config/color", [inst_group[0]], True)
       mixer.set_value(f"/ch/{ch + 1:#02}/config/name", [channel_dict[ch][0]], True)
       mixer.set_value(f"/ch/{ch + 1:#02}/config/insrc", [ch], True) # default: linear in/out mapping
@@ -152,9 +169,13 @@ def get_gain(ch):
 
 def set_gain(ch, x):
   if ch >= 8 and is_XR16:
-    mixer.set_value(f"/headamp/{ch + 9:#02}/gain", [(x + 12) / (20 - (-12))], True)
+    value = max(0, min(1, (x + 12) / (20 - (-12))))
+    mixer.set_value(f"/headamp/{ch + 9:#02}/gain", [value], True)
+    return value * (20 - (-12)) - 12
   else:
-    mixer.set_value(f"/headamp/{ch + 1:#02}/gain", [(x + 12) / (60 - (-12))], True)
+    value = max(0, min(1, (x + 12) / (60 - (-12))))
+    mixer.set_value(f"/headamp/{ch + 1:#02}/gain", [value], True)
+    return value * (60 - (-12)) - 12
 
 
 def send_meters_request_message():
@@ -172,7 +193,7 @@ def send_meters_request_message():
 if use_recorded_data:
   f = open("_test.dat", mode="rb")
   data1 = np.reshape(np.fromfile(f, dtype=np.int16), (-1, 18))
-  count = 100000
+  count = 110000
   f.close()
 
 
@@ -265,7 +286,7 @@ def gui_thread():
 
   # buttons
   tk.Button(buttons_f, text="Reset Buffers",command=lambda: reset_buffers()).pack(side='left')
-  tk.Button(buttons_f, text="Apply Gains",command=lambda: print("Button Apply Gains pressed")).pack(side='left')
+  tk.Button(buttons_f, text="Apply Gains",command=lambda: set_gains()).pack(side='left')
   tk.Button(buttons_f, text="Apply Faders",command=lambda: print("Button Apply Faders pressed")).pack(side='left')
   tk.Button(buttons_f, text="Reset All",command=lambda: basic_setup_mixer(mixer)).pack(side='left')
 
