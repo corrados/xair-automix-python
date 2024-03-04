@@ -24,23 +24,20 @@
 #                                                          -> high pass on guitar/vocal at 100 Hz, bass at 20-30 Hz
 
 
-import sys, threading, time, socket, struct
+import sys, threading, time, socket, struct, numpy
 sys.path.append('python-x32/src')
 sys.path.append('python-x32/src/pythonx32')
-import numpy as np
 from pythonx32 import x32
 from collections import deque
-import matplotlib.pyplot as plt
-import matplotlib.gridspec as gridspec
 import tkinter as tk
 from tkinter import ttk
 
 # custom mixer channel setup
-vocal   = [ 9 - 8]
-guitar  = [11 - 8]
-bass    = [10 - 8]
-edrums  = [13 - 8]
-drums   = [12 - 8]
+vocal   = [1]
+guitar  = [3]
+bass    = [2]
+edrums  = [5]
+drums   = [4]
 special = [0]
 channel_dict = { 0:["Click",      0, special, ["NOMIX"]], \
                  1:["E-Git Mono", 0, guitar], \
@@ -213,7 +210,7 @@ def send_meters_request_message():
 # TEST
 if use_recorded_data:
   f = open("_test.dat", mode="rb")
-  data1 = np.reshape(np.fromfile(f, dtype=np.int16), (-1, 18))
+  data1 = numpy.reshape(numpy.fromfile(f, dtype=numpy.int16), (-1, 18))
   count = 60000
   f.close()
 
@@ -259,7 +256,7 @@ def receive_meter_messages():
 
 
 def analyze_histogram(histogram):
-  max_index      = np.argmax(histogram)
+  max_index      = numpy.argmax(histogram)
   max_data_index = len(histogram) - 1 # start value
   while histogram[max_data_index] == 0 and max_data_index > 0: max_data_index -= 1
   max_data_value = int(max_data_index / hist_len * 129 - 128)
@@ -295,12 +292,8 @@ def gui_thread():
   global exit_threads, channel
   window       = tk.Tk(className="XR Auto Mix")
   window_color = window.cget("bg")
-  input_bars   = []
-  input_labels = []
-  rta_bars     = []
-  buttons_f    = tk.Frame(window)
-  inputs_f     = tk.Frame(window)
-  selection_f  = tk.Frame(window)
+  (input_bars, input_labels, rta_bars) = ([], [], [])
+  (buttons_f, inputs_f, selection_f)   = (tk.Frame(window), tk.Frame(window), tk.Frame(window))
   buttons_f.pack()
   inputs_f.pack()
   selection_f.pack()
