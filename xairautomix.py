@@ -99,10 +99,6 @@ def main():
   mixer       = x32.BehringerX32(f"{addr_subnet}.{found_addr}", local_port, False, 10, found_port)
   is_XR16     = "XR16" in mixer.get_value("/info")[2]
 
-  # get current input gains
-  for ch in channel_dict:
-    channel_dict[ch][1] = get_gain(ch)
-
   # start separate threads
   threading.Timer(0.0, send_meters_request_message).start()
   threading.Timer(0.0, receive_meter_messages).start()
@@ -114,6 +110,7 @@ def set_gains():
   with queue_mutex:
     for i in range(len_meter2):
       if i < len(channel_dict):
+        channel_dict[i][1] = get_gain(i) # get current input gains
         (histogram_normalized, max_index, max_data_index, max_data_value) = analyze_histogram(histograms[i])
         new_gain = round((channel_dict[i][1] - (max_data_value - target_max_gain)) * 2) / 2 # round to 0.5
         if new_gain < max_allowed_gain and max_data_value > input_threshold:
@@ -200,11 +197,8 @@ def set_gain(ch, x):
 def send_meters_request_message():
   global mixer
   while not exit_threads:
-    #mixer.set_value(f'/meters', ['/meters/0', channel], False) # 8 channel meters
-    #mixer.set_value(f'/meters', ['/meters/1'], False)          # ALL CHANNELS
-    mixer.set_value(f'/meters', ['/meters/2'], False)           # ALL INPUTS
-    mixer.set_value(f'/meters', ['/meters/4'], False)           # RTA100
-    #mixer.set_value(f'/meters', ['/meters/5'], False)          # ALL OUTPUTS
+    mixer.set_value(f'/meters', ['/meters/2'], False) # ALL INPUTS
+    mixer.set_value(f'/meters', ['/meters/4'], False) # RTA100
     if not exit_threads: time.sleep(1) # every second update meters request
 
 
@@ -291,8 +285,8 @@ def reset_buffers():
 
 def gui_thread():
   global exit_threads, channel
-  window       = tk.Tk(className="XR Auto Mix")
-  window_color = window.cget("bg")
+  window                               = tk.Tk(className="XR Auto Mix")
+  window_color                         = window.cget("bg")
   (input_bars, input_labels, rta_bars) = ([], [], [])
   (buttons_f, inputs_f, selection_f)   = (tk.Frame(window), tk.Frame(window), tk.Frame(window))
   buttons_f.pack()
