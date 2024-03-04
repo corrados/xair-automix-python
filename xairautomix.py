@@ -58,6 +58,12 @@ channel_dict = { 0:["Click",      0, special, ["NOMIX"]], \
                 13:["Overhead",   0, drums, ["PHANT"]], \
                 14:["E-Drum L",   0, edrums], \
                 15:["E-Drum R",   0, edrums, ["LINK"]]}
+busses_dict = { 0:["Stefan Mon"], \
+                1:["Chris Mon"], \
+                2:["Miguel Mon L"], \
+                3:["Miguel Mon R", ["LINK"]], \
+                4:["Volker Mon L"], \
+                5:["Volker Mon R", ["LINK"]]}
 
 local_port       = 10300
 found_addr       = -1
@@ -121,6 +127,20 @@ def set_gains():
 
 def basic_setup_mixer(mixer):
   if tk.messagebox.askyesno(message='Are you sure to reset all mixer settings?'):
+    for i in range(6):
+      mixer.set_value(f"/bus/{i + 1}/config/name", [busses_dict[i][0]], True)
+      #/bus/1/config/name
+
+      # TODO support ["LINK"] in busses_dict
+
+    # TODO this does not work -> FX channels do not seem to update to any settings parameter...
+    #for i in range(4):
+    #  mixer.set_value(f"/fxsend/{i + 1}/mix/fader", [0], True)  # default: 
+    #  #/fxsend/1/mix/fader
+    #  print(mixer.get_value(f"/fxsend/{i + 1}/config/name"))
+    #  mixer.set_value(f"/fxsend/{i + 1}/config/name", ["test"], True)  # default: 
+    #  #/fxsend/1/config/name
+
     for ch in channel_dict:
       inst_group = channel_dict[ch][2]
       mixer.set_value(f"/ch/{ch + 1:#02}/config/color", [inst_group[0]], True)
