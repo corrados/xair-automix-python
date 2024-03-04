@@ -29,6 +29,7 @@ sys.path.append('python-x32/src')
 sys.path.append('python-x32/src/pythonx32')
 from pythonx32 import x32
 from collections import deque
+import matplotlib.pyplot as plt # TODO somehow needed for "messagebox.askyesno"?
 import tkinter as tk
 from tkinter import ttk
 
