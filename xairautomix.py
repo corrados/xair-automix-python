@@ -63,28 +63,24 @@ busses_dict = { 0:["Stefan Mon"], \
                 4:["Volker Mon L"], \
                 5:["Volker Mon R", ["LINK"]]}
 
-local_port       = 10300
-channel          = -1  # initialize with invalid channel
-len_meter2       = 18  # ALL INPUTS (16 mic, 2 aux, 18 usb = 36 values total but we only need the mic inputs)
-len_meter4       = 100 # RTA100 (100 bins RTA = 100 values)
-hist_len         = 128 # histogram bins
-rta_hist_height  = 120
-meter_update_s   = 0.05 # update cycle frequency for meter data is 50 ms
-rta_line_width   = 3
-hist_line_width  = 3
+use_recorded_data = False # TEST
 target_max_gain  = -15 # dB
 input_threshold  = -50 # dB
 max_allowed_gain = 40 # dB
-is_XR16          = False
-exit_threads     = False
-file_path        = "test.dat"
-queue_len_s      = 5 * 60 # 5 minutes
 
-# TEST
-use_recorded_data = False
-
-
-# global initializations
+local_port           = 10300
+channel              = -1  # initialize with invalid channel
+len_meter2           = 18  # ALL INPUTS (16 mic, 2 aux, 18 usb = 36 values total but we only need the mic inputs)
+len_meter4           = 100 # RTA100 (100 bins RTA = 100 values)
+hist_len             = 128 # histogram bins
+rta_hist_height      = 120
+meter_update_s       = 0.05 # update cycle frequency for meter data is 50 ms
+rta_line_width       = 3
+hist_line_width      = 3
+is_XR16              = False
+exit_threads         = False
+file_path            = "test.dat"
+queue_len_s          = 5 * 60 # 5 minutes
 all_raw_inputs_queue = deque()
 queue_mutex          = threading.Lock()
 
