@@ -19,10 +19,10 @@
 
 # Perform auto mixing based on measured signal levels for the Behringer X-AIR mixers.
 # protocol: https://wiki.munichmakerlab.de/images/1/17/UNOFFICIAL_X32_OSC_REMOTE_PROTOCOL_%281%29.pdf
-# https://mediadl.musictribe.com/download/software/behringer/XAIR/X%20AIR%20Remote%20Control%20Protocol.pdf
+#           https://behringer.world/wiki/doku.php?id=x-air_osc
+#           https://mediadl.musictribe.com/download/software/behringer/XAIR/X%20AIR%20Remote%20Control%20Protocol.pdf
 # According to https://www.youtube.com/watch?v=EilVDp39A9g -> input gain level should be -18 dB
 #                                                          -> high pass on guitar/vocal at 100 Hz, bass at 20-30 Hz
-
 
 import sys, threading, time, socket, struct, numpy
 sys.path.append('python-x32/src')
