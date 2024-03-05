@@ -121,15 +121,8 @@ def basic_setup_mixer(mixer):
       if len(busses_dict[bus]) > 1: # special bus settings
         if "LINK" in busses_dict[bus][1] and bus % 2 == 1:
           mixer.set_value(f"/config/buslink/{bus}-{bus + 1}", [1], True)
-
-    # TODO this does not work -> FX channels do not seem to update to any settings parameter...
-    #for i in range(4):
-    #  mixer.set_value(f"/fxsend/{i + 1}/mix/fader", [0], True)  # default: 
-    #  #/fxsend/1/mix/fader
-    #  print(mixer.get_value(f"/fxsend/{i + 1}/config/name"))
-    #  mixer.set_value(f"/fxsend/{i + 1}/config/name", ["test"], True)  # default: 
-    #  #/fxsend/1/config/name
-
+      for rtn in range(4):
+        mixer.set_value(f"/rtn/{rtn + 1}/mix/{bus + 1:#02}/level", [0], True) # default: FX level to lowest value
     for ch in channel_dict:
       inst_group = channel_dict[ch][2]
       mixer.set_value(f"/ch/{ch + 1:#02}/config/color", [inst_group[0]], True)
