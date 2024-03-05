@@ -144,7 +144,9 @@ def basic_setup_mixer(mixer):
         mixer.set_value(f"/ch/{ch + 1:#02}/eq/{i + 1}/type", [2], True) # default: EQ, PEQ
         mixer.set_value(f"/ch/{ch + 1:#02}/eq/{i + 1}/g", [0.5], True)  # default: EQ, 0 dB gain
       for i in range(9):
-        mixer.set_value(f"/ch/{ch + 1:#02}/mix/0{i + 1}/level", [0], True) # default: sends to lowest value
+        mixer.set_value(f"/ch/{ch + 1:#02}/mix/{i + 1:#02}/level", [0], True) # default: sends to lowest value
+      for bus in range(0, 6, 2): # adjust pan in send busses per channel (every second bus)
+        mixer.set_value(f"/ch/{ch + 1:#02}/mix/{bus + 1:#02}/pan", [0.5], True) # default: middle position
       if ch % 2 == 1:
         mixer.set_value(f"/config/chlink/{ch}-{ch + 1}", [0], True) # default: no stereo link
       if len(channel_dict[ch]) > 3: # special channel settings
