@@ -64,7 +64,6 @@ busses_dict = { 0:["Stefan Mon"], \
                 5:["Volker Mon R", ["LINK"]]}
 
 local_port       = 10300
-found_addr       = -1
 channel          = -1  # initialize with invalid channel
 len_meter2       = 18  # ALL INPUTS (16 mic, 2 aux, 18 usb = 36 values total but we only need the mic inputs)
 len_meter4       = 100 # RTA100 (100 bins RTA = 100 values)
@@ -91,13 +90,12 @@ queue_mutex          = threading.Lock()
 
 
 def main():
-  global found_addr, found_port, fader_init_val, bus_init_val, mixer, is_XR16
+  global mixer, is_XR16
   reset_buffers()
 
   # search for a mixer and initialize the connection to the mixer
-  addr_subnet = search_mixer()
-  mixer       = x32.BehringerX32(f"{addr_subnet}.{found_addr}", local_port, False, 10, found_port)
-  is_XR16     = "XR16" in mixer.get_value("/info")[2]
+  mixer   = x32.BehringerX32([], local_port, False, 10)
+  is_XR16 = "XR16" in mixer.get_value("/info")[2]
 
   # start separate threads
   threading.Timer(0.0, send_meters_request_message).start()
@@ -376,48 +374,6 @@ def store_input_levels_in_file():
       for data in cur_list_data:
         file.write(struct.pack('%sh' % len(data), *data))
     if not exit_threads: time.sleep(1) # every second append logging file
-
-
-def search_mixer():
-  addr_subnet = '.'.join(get_ip().split('.')[0:3]) # only use first three numbers of local IP address
-  while found_addr < 0:
-    for j in range(10024, 10022, -1): # X32:10023, XAIR:10024 -> check both
-      if found_addr < 0:
-        for i in range(2, 255):
-          threading.Thread(target = try_to_ping_mixer, args = (addr_subnet, local_port + 1, i, j, )).start()
-          if found_addr >= 0:
-            break
-      if found_addr < 0:
-        time.sleep(2) # time-out is 1 second -> wait two-times the time-out
-  return addr_subnet
-
-
-def try_to_ping_mixer(addr_subnet, start_port, i, j):
-  global found_addr, found_port
-  #print(f"{addr_subnet}.{i}:{start_port + i + j}")
-  search_mixer = x32.BehringerX32(f"{addr_subnet}.{i}", start_port + i + j, False, 1, j) # just one second time-out
-  try:
-    search_mixer.ping()
-    search_mixer.__del__() # important to delete object before changing found_addr
-    found_addr = i
-    found_port = j
-  except:
-    search_mixer.__del__()
-
-
-# taken from stack overflow "Finding local IP addresses using Python's stdlib"
-def get_ip():
-  s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-  s.settimeout(0)
-  try:
-    # doesn't even have to be reachable
-    s.connect(('10.255.255.255', 1))
-    IP = s.getsockname()[0]
-  except Exception:
-    IP = '127.0.0.1'
-  finally:
-    s.close()
-  return IP
 
 
 if __name__ == '__main__':
