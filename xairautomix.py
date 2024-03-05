@@ -116,11 +116,11 @@ def set_gains():
 
 def basic_setup_mixer(mixer):
   if tk.messagebox.askyesno(message='Are you sure to reset all mixer settings?'):
-    for i in range(6):
-      mixer.set_value(f"/bus/{i + 1}/config/name", [busses_dict[i][0]], True)
-      #/bus/1/config/name
-
-      # TODO support ["LINK"] in busses_dict
+    for bus in range(6):
+      mixer.set_value(f"/bus/{bus + 1}/config/name", [busses_dict[bus][0]], True)
+      if len(busses_dict[bus]) > 1: # special bus settings
+        if "LINK" in busses_dict[bus][1] and bus % 2 == 1:
+          mixer.set_value(f"/config/buslink/{bus}-{bus + 1}", [1], True)
 
     # TODO this does not work -> FX channels do not seem to update to any settings parameter...
     #for i in range(4):
