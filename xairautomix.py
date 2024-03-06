@@ -24,7 +24,7 @@
 # According to https://www.youtube.com/watch?v=EilVDp39A9g -> input gain level should be -18 dB
 #                                                          -> high pass on guitar/vocal at 100 Hz, bass at 20-30 Hz
 
-import sys, threading, time, socket, struct, numpy
+import sys, threading, time, struct, numpy
 sys.path.append('python-x32/src')
 sys.path.append('python-x32/src/pythonx32')
 from pythonx32 import x32
@@ -63,7 +63,7 @@ busses_dict = { 0:["Stefan Mon"], \
                 4:["Volker Mon L"], \
                 5:["Volker Mon R", ["LINK"]]}
 
-use_recorded_data = False # TEST
+use_recorded_data = True # TEST
 target_max_gain  = -15 # dB
 input_threshold  = -50 # dB
 max_allowed_gain = 40 # dB
@@ -202,23 +202,18 @@ if use_recorded_data:
 def receive_meter_messages():
   global mixer, count
   while not exit_threads:
-    cur_message = mixer.get_msg_from_queue()
-    mixer_cmd   = cur_message.address
-
-    if mixer_cmd == "/meters/2" or mixer_cmd == "/meters/4":
-      mixer_data = bytearray(cur_message.data[0])
-      num_bytes  = len(mixer_data)
-      if num_bytes >= 4:
-        size = struct.unpack('i', mixer_data[0:4])[0]
-        raw_values = [0] * size
-        values     = [0] * size
+    message = mixer.get_msg_from_queue()
+    if message.address == "/meters/2" or message.address == "/meters/4":
+      data = bytearray(message.data[0])
+      if len(data) >= 4:
+        size = struct.unpack('i', data[0:4])[0]
+        (values, raw_values) = ([0] * size, [0] * size)
         for i in range(size):
-          cur_byte      = mixer_data[4 + i * 2:4 + i * 2 + 2]
-          raw_values[i] = struct.unpack('h', cur_byte)[0] # signed integer 16 bit
-          values[i]     = raw_values[i] / 256             # resolution 1/256 dB
+          raw_values[i] = struct.unpack('h', data[4 + i * 2:4 + i * 2 + 2])[0] # signed integer 16 bit
+          values[i]     = raw_values[i] / 256                                  # resolution 1/256 dB
 
         with queue_mutex:
-          if mixer_cmd == "/meters/2":
+          if message.address == "/meters/2":
 
             # TEST NOTE: "global count" can be removed as soon as the TEST code is removed
             if use_recorded_data:
@@ -230,12 +225,12 @@ def receive_meter_messages():
             cur_values = values[0:len_meter2]
             calc_histograms(old_values, cur_values)
             all_inputs_queue.append(cur_values)
-          elif mixer_cmd == "/meters/4":
+          elif message.address == "/meters/4":
             rta_queue.popleft()
             rta_queue.append(values)
     else:
       # no meters message, put it back on queue and give other thread some time to process message
-      mixer.put_msg_on_queue(cur_message)
+      mixer.put_msg_on_queue(message)
       time.sleep(0.02)
 
 
