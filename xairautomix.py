@@ -88,11 +88,8 @@ queue_mutex          = threading.Lock()
 def main():
   global mixer, is_XR16
   reset_buffers()
-
-  # search for a mixer and initialize the connection to the mixer
-  mixer   = x32.BehringerX32([], local_port, False, 10)
+  mixer   = x32.BehringerX32([], local_port, False, 10) # search for a mixer
   is_XR16 = "XR16" in mixer.get_value("/info")[2]
-
   # start separate threads
   threading.Timer(0.0, send_meters_request_message).start()
   threading.Timer(0.0, receive_meter_messages).start()
@@ -231,7 +228,7 @@ def receive_meter_messages():
     else:
       # no meters message, put it back on queue and give other thread some time to process message
       mixer.put_msg_on_queue(message)
-      time.sleep(0.02)
+      time.sleep(0.01)
 
 
 def analyze_histogram(histogram):
