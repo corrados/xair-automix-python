@@ -80,14 +80,15 @@ hist_line_width      = 3
 is_XR16              = False
 exit_threads         = False
 file_path            = "test.dat"
-queue_len_s          = 5 * 60 # 5 minutes
+input_values         = [0] * len_meter2
+input_rta            = [0] * len_meter4
 all_raw_inputs_queue = deque()
-queue_mutex          = threading.Lock()
+data_mutex           = threading.Lock()
 
 
 def main():
   global mixer, is_XR16
-  reset_buffers()
+  reset_histograms()
   mixer   = x32.BehringerX32([], local_port, False, 10) # search for a mixer
   is_XR16 = "XR16" in mixer.get_value("/info")[2]
   # start separate threads
@@ -98,7 +99,7 @@ def main():
 
 
 def set_gains():
-  with queue_mutex:
+  with data_mutex:
     for i in range(len_meter2):
       if i < len(channel_dict):
         channel_dict[i][1] = get_gain(i) # get current input gains
@@ -108,7 +109,7 @@ def set_gains():
           channel_dict[i][1] = set_gain(i, new_gain)
         else:
           channel_dict[i][1] = set_gain(i, 0) # in case channel is not connected, set to 0 dB input gain
-  reset_buffers() # history needs to be reset on updated gain settings
+  reset_histograms() # history needs to be reset on updated gain settings
 
 
 def basic_setup_mixer(mixer):
@@ -197,7 +198,7 @@ if use_recorded_data:
 
 
 def receive_meter_messages():
-  global mixer, count
+  global mixer, input_values, input_rta, count
   while not exit_threads:
     message = mixer.get_msg_from_queue()
     if message.address == "/meters/2" or message.address == "/meters/4":
@@ -209,7 +210,7 @@ def receive_meter_messages():
           raw_values[i] = struct.unpack('h', data[4 + i * 2:4 + i * 2 + 2])[0] # signed integer 16 bit
           values[i]     = raw_values[i] / 256                                  # resolution 1/256 dB
 
-        with queue_mutex:
+        with data_mutex:
           if message.address == "/meters/2":
 
             # TEST NOTE: "global count" can be removed as soon as the TEST code is removed
@@ -218,13 +219,10 @@ def receive_meter_messages():
               count += 1
 
             all_raw_inputs_queue.append(raw_values[0:len_meter2])
-            old_values = all_inputs_queue.popleft()
-            cur_values = values[0:len_meter2]
-            calc_histograms(old_values, cur_values)
-            all_inputs_queue.append(cur_values)
+            input_values = values[0:len_meter2]
+            calc_histograms(input_values)
           elif message.address == "/meters/4":
-            rta_queue.popleft()
-            rta_queue.append(values)
+            input_rta = values
     else:
       # no meters message, put it back on queue and give other thread some time to process message
       mixer.put_msg_on_queue(message)
@@ -244,24 +242,15 @@ def analyze_histogram(histogram):
   return (histogram_normalized, max_index, max_data_index, max_data_value)
 
 
-def calc_histograms(old_values, cur_values):
+def calc_histograms(values):
   for i in range(len_meter2):
-    old_value = old_values[i]
-    cur_value = cur_values[i]
-    if old_value > -200: # check for invalid initialization value
-      old_hist_idx = int((old_value + 128) / 129 * hist_len)
-      histograms[i][old_hist_idx] -= 1 # histogram with moving time window
-    cur_hist_idx = int((cur_value + 128) / 129 * hist_len)
-    histograms[i][cur_hist_idx] += 1
+    histograms[i][int((values[i] + 128) / 129 * hist_len)] += 1
 
 
-def reset_buffers():
-  global all_inputs_queue, rta_queue, histograms
-  with queue_mutex:
-    queue_len        = int(queue_len_s / meter_update_s)
-    all_inputs_queue = deque([[-200] * len_meter2] * queue_len) # using invalid initialization value of -200 dB
-    rta_queue        = deque([[-200] * len_meter4] * queue_len) # using invalid initialization value of -200 dB
-    histograms       = [[0] * hist_len for i in range(len_meter2)]
+def reset_histograms():
+  global histograms
+  with data_mutex:
+    histograms = [[0] * hist_len for i in range(len_meter2)]
 
 
 def gui_thread():
@@ -275,7 +264,7 @@ def gui_thread():
   selection_f.pack()
 
   # buttons
-  tk.Button(buttons_f, text="Reset Buffers",command=lambda: reset_buffers()).pack(side='left')
+  tk.Button(buttons_f, text="Reset Histograms",command=lambda: reset_histograms()).pack(side='left')
   tk.Button(buttons_f, text="Apply Gains",command=lambda: set_gains()).pack(side='left')
   tk.Button(buttons_f, text="Apply Faders",command=lambda: print("Button Apply Faders pressed")).pack(side='left')
   tk.Button(buttons_f, text="Reset All",command=lambda: basic_setup_mixer(mixer)).pack(side='left')
@@ -308,11 +297,11 @@ def gui_thread():
 
   while not exit_threads:
     try:
-      with queue_mutex:
-        input_values = all_inputs_queue[len(all_inputs_queue) - 1]
-        input_rta    = rta_queue[len(rta_queue) - 1]
+      with data_mutex: # lock mutex as short as possible
+        input_values_copy = input_values
+        input_rta_copy    = input_rta
       for i in range(len_meter2):
-        input_bars[i].set((input_values[i] / 128 + 1) * 100)
+        input_bars[i].set((input_values_copy[i] / 128 + 1) * 100)
         (histogram_normalized, max_index, max_data_index, max_data_value) = analyze_histogram(histograms[i])
         if max_data_value > target_max_gain + 6:
           input_labels[i].config(text=max_data_value, bg="red")
@@ -325,7 +314,7 @@ def gui_thread():
       rta.delete("all")
       for i in range(len_meter4):
         x = rta_line_width + i * rta_line_width + i
-        y = (input_rta[i] / 128 + 1) * rta_hist_height
+        y = (input_rta_copy[i] / 128 + 1) * rta_hist_height
         rta.create_line(x, rta_hist_height, x, rta_hist_height - y, fill="#476042", width=rta_line_width)
 
       (histogram_normalized, max_index, max_data_index, max_data_value) = analyze_histogram(histograms[channel])
@@ -349,7 +338,7 @@ def gui_thread():
 def store_input_levels_in_file():
   # Octave: h=fopen('test.dat','rb');x=fread(h,Inf,'int16');fclose(h);x=reshape(x,18,[])/256;close all;plot(x.')
   while not exit_threads:
-    with queue_mutex:
+    with data_mutex:
       cur_list_data = [] # just do copy in mutex and not the actual file storage
       while all_raw_inputs_queue:
         cur_list_data.append(all_raw_inputs_queue.popleft())
