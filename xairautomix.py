@@ -104,7 +104,7 @@ def apply_optimal_gains():
       if i < len(channel_dict):
         channel_dict[i][1] = get_gain(i) # get current input gains
         (max_data_index, max_data_value) = analyze_histogram(histograms[i])
-        new_gain = round((channel_dict[i][1] - (max_data_value - target_max_gain)) * 2) / 2 # round to 0.5
+        new_gain = channel_dict[i][1] - (max_data_value - target_max_gain)
         if new_gain < max_allowed_gain and max_data_value > input_threshold:
           channel_dict[i][1] = set_gain(i, new_gain)
         else:
@@ -171,6 +171,7 @@ def get_gain(ch):
 
 
 def set_gain(ch, x):
+  x = round(x * 2) / 2 # round to 0.5
   if ch >= 8 and is_XR16:
     value = max(0, min(0.984375, (x + 12) / (20 - (-12))))
     mixer.set_value(f"/headamp/{ch + 9:#02}/gain", [value], True)
