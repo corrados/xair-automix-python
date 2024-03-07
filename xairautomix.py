@@ -33,29 +33,29 @@ import matplotlib.pyplot as plt # TODO somehow needed for "messagebox.askyesno"?
 import tkinter as tk
 from tkinter import ttk
 
-# custom mixer channel setup
+# mixer channel setup, channel_dict: [name, gain, HP, group, special]
 vocal   = [1]
 guitar  = [3]
 bass    = [2]
 edrums  = [5]
 drums   = [4]
 special = [0]
-channel_dict = { 0:["Click",      0, special, ["NOMIX"]], \
-                 1:["E-Git Mono", 0, guitar], \
-                 2:["Stefan",     0, vocal], \
-                 3:["Miguel",     0, vocal], \
-                 4:["Chris",      0, vocal], \
-                 5:["Bass",       0, bass], \
-                 6:["E-Git L",    0, guitar], \
-                 7:["E-Git R",    0, guitar, ["LINK"]], \
-                 8:["A-Git",      0, guitar], \
-                 9:["Kick",       0, drums, ["PHANT"]], \
-                10:["Snare",      0, drums], \
-                11:["Tom1",       0, drums], \
-                12:["Tom2",       0, drums], \
-                13:["Overhead",   0, drums, ["PHANT"]], \
-                14:["E-Drum L",   0, edrums], \
-                15:["E-Drum R",   0, edrums, ["LINK"]]}
+channel_dict = { 0:["Click",      0, 100, special, ["NOMIX"]], \
+                 1:["E-Git Mono", 0, 100, guitar], \
+                 2:["Stefan",     0, 100, vocal], \
+                 3:["Miguel",     0, 100, vocal], \
+                 4:["Chris",      0, 100, vocal], \
+                 5:["Bass",       0,  25, bass], \
+                 6:["E-Git L",    0, 100, guitar], \
+                 7:["E-Git R",    0, 100, guitar, ["LINK"]], \
+                 8:["A-Git",      0, 100, guitar], \
+                 9:["Kick",       0,  25, drums, ["PHANT"]], \
+                10:["Snare",      0, 100, drums], \
+                11:["Tom1",       0, 100, drums], \
+                12:["Tom2",       0,  25, drums], \
+                13:["Overhead",   0, 100, drums, ["PHANT"]], \
+                14:["E-Drum L",   0,  25, edrums], \
+                15:["E-Drum R",   0,  25, edrums, ["LINK"]]}
 busses_dict = { 0:["Stefan Mon"], \
                 1:["Chris Mon"], \
                 2:["Miguel Mon L"], \
@@ -68,7 +68,6 @@ target_max_gain  = -15 # dB
 input_threshold  = -50 # dB
 max_allowed_gain = 40 # dB
 
-local_port           = 10300
 channel              = -1  # initialize with invalid channel
 len_meter2           = 18  # ALL INPUTS (16 mic, 2 aux, 18 usb = 36 values total but we only need the mic inputs)
 len_meter4           = 100 # RTA100 (100 bins RTA = 100 values)
@@ -89,7 +88,7 @@ data_mutex           = threading.Lock()
 def main():
   global mixer, is_XR16
   reset_histograms()
-  mixer   = x32.BehringerX32([], local_port, False, 10) # search for a mixer
+  mixer   = x32.BehringerX32([], 10300, False, 10) # search for a mixer
   is_XR16 = "XR16" in mixer.get_value("/info")[2]
   # start separate threads
   threading.Timer(0.0, send_meters_request_message).start()
@@ -122,7 +121,7 @@ def basic_setup_mixer(mixer):
       for rtn in range(4):
         mixer.set_value(f"/rtn/{rtn + 1}/mix/{bus + 1:#02}/level", [0], True) # default: FX level to lowest value
     for ch in channel_dict:
-      inst_group = channel_dict[ch][2]
+      inst_group = channel_dict[ch][3]
       mixer.set_value(f"/ch/{ch + 1:#02}/config/color", [inst_group[0]], True)
       mixer.set_value(f"/ch/{ch + 1:#02}/config/name", [channel_dict[ch][0]], True)
       mixer.set_value(f"/ch/{ch + 1:#02}/config/insrc", [ch], True) # default: linear in/out mapping
@@ -138,6 +137,16 @@ def basic_setup_mixer(mixer):
       mixer.set_value(f"/ch/{ch + 1:#02}/dyn/on", [0], True)        # default: compressor off
       mixer.set_value(f"/ch/{ch + 1:#02}/eq/on", [1], True)         # default: EQ on
       mixer.set_value(f"/ch/{ch + 1:#02}/preamp/hpon", [0], True)   # default: high-pass off
+
+      # TODO this is not yet working -> setting the HP filter frequency
+      #mixer.set_value(f"/ch/{ch + 1:#02}/preamp/hpon", [1], True)   # default: high-pass on
+      ##print((channel_dict[ch][2] - 20) / (200 - 20))
+      #channel_dict[ch][2]=167
+      #x = (channel_dict[ch][2] - 20) / 148.9
+      #print(x)
+      #mixer.set_value(f"/ch/{ch + 1:#02}/preamp/hpf", [x], False)
+      ##mixer.set_value(f"/ch/{ch + 1:#02}/preamp/hpf", [0], False)
+
       for i in range(4):
         mixer.set_value(f"/ch/{ch + 1:#02}/eq/{i + 1}/type", [2], True) # default: EQ, PEQ
         mixer.set_value(f"/ch/{ch + 1:#02}/eq/{i + 1}/g", [0.5], True)  # default: EQ, 0 dB gain
@@ -147,12 +156,12 @@ def basic_setup_mixer(mixer):
         mixer.set_value(f"/ch/{ch + 1:#02}/mix/{bus + 1:#02}/pan", [0.5], True) # default: middle position
       if ch % 2 == 1:
         mixer.set_value(f"/config/chlink/{ch}-{ch + 1}", [0], True) # default: no stereo link
-      if len(channel_dict[ch]) > 3: # special channel settings
-        if "NOMIX" in channel_dict[ch][3]:
+      if len(channel_dict[ch]) > 4: # special channel settings
+        if "NOMIX" in channel_dict[ch][4]:
           mixer.set_value(f"/ch/{ch + 1:#02}/mix/lr", [0], True)
-        if "PHANT" in channel_dict[ch][3]:
+        if "PHANT" in channel_dict[ch][4]:
           mixer.set_value(f"/headamp/{ch + 1:#02}/phantom", [1], True)
-        if "LINK" in channel_dict[ch][3] and ch % 2 == 1:
+        if "LINK" in channel_dict[ch][4] and ch % 2 == 1:
           mixer.set_value(f"/config/chlink/{ch}-{ch + 1}", [1], True)
 
 
