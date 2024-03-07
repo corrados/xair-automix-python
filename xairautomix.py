@@ -172,7 +172,7 @@ def get_gain(ch):
 
 def set_gain(ch, x):
   if ch >= 8 and is_XR16:
-    value = max(0, min(1, (x + 12) / (20 - (-12))))
+    value = max(0, min(0.984375, (x + 12) / (20 - (-12))))
     mixer.set_value(f"/headamp/{ch + 9:#02}/gain", [value], True)
     return value * (20 - (-12)) - 12
   else:
