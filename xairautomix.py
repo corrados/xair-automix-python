@@ -103,7 +103,7 @@ def set_gains():
     for i in range(len_meter2):
       if i < len(channel_dict):
         channel_dict[i][1] = get_gain(i) # get current input gains
-        (histogram_normalized, max_index, max_data_index, max_data_value) = analyze_histogram(histograms[i])
+        (max_index, max_data_index, max_data_value) = analyze_histogram(histograms[i])
         new_gain = round((channel_dict[i][1] - (max_data_value - target_max_gain)) * 2) / 2 # round to 0.5
         if new_gain < max_allowed_gain and max_data_value > input_threshold:
           channel_dict[i][1] = set_gain(i, new_gain)
@@ -234,12 +234,7 @@ def analyze_histogram(histogram):
   max_data_index = len(histogram) - 1 # start value
   while histogram[max_data_index] == 0 and max_data_index > 0: max_data_index -= 1
   max_data_value = int(max_data_index / hist_len * 129 - 128)
-  max_hist = max(histograms[channel])
-  if max_hist > 0:
-    histogram_normalized = [x / max_hist for x in histograms[channel]]
-  else:
-    histogram_normalized = [0] * len(histogram)
-  return (histogram_normalized, max_index, max_data_index, max_data_value)
+  return (max_index, max_data_index, max_data_value)
 
 
 def calc_histograms(values):
@@ -302,7 +297,7 @@ def gui_thread():
         input_rta_copy    = input_rta
       for i in range(len_meter2):
         input_bars[i].set((input_values_copy[i] / 128 + 1) * 100)
-        (histogram_normalized, max_index, max_data_index, max_data_value) = analyze_histogram(histograms[i])
+        ( max_index, max_data_index, max_data_value) = analyze_histogram(histograms[i])
         if max_data_value > target_max_gain + 6:
           input_labels[i].config(text=max_data_value, bg="red")
         else:
@@ -317,13 +312,15 @@ def gui_thread():
         y = (input_rta_copy[i] / 128 + 1) * rta_hist_height
         rta.create_line(x, rta_hist_height, x, rta_hist_height - y, fill="#476042", width=rta_line_width)
 
-      (histogram_normalized, max_index, max_data_index, max_data_value) = analyze_histogram(histograms[channel])
-      hist.delete("all")
-      for i in range(hist_len):
-        x = hist_line_width + i * hist_line_width + i
-        y = histogram_normalized[i] * rta_hist_height
-        color = "blue" if i == max_index else "red" if i == max_data_index else "#476042"
-        hist.create_line(x, rta_hist_height, x, rta_hist_height - y, fill=color, width=hist_line_width)
+      (max_index, max_data_index, max_data_value) = analyze_histogram(histograms[channel])
+      max_hist = max(histograms[channel])
+      if max_hist > 0:
+        hist.delete("all")
+        for i in range(hist_len):
+          x = hist_line_width + i * hist_line_width + i
+          y = histograms[channel][i] * rta_hist_height / max_hist
+          color = "blue" if i == max_index else "red" if i == max_data_index else "#476042"
+          hist.create_line(x, rta_hist_height, x, rta_hist_height - y, fill=color, width=hist_line_width)
 
       if int(channel_sel.get()) - 1 is not channel:
         channel = int(channel_sel.get()) - 1
