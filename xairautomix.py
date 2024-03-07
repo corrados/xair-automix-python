@@ -111,6 +111,25 @@ def apply_optimal_gains():
   reset_histograms() # history needs to be reset on updated gain settings
 
 
+def get_gain(ch):
+  if ch >= 8 and is_XR16:
+    return mixer.get_value(f"/headamp/{ch + 9:#02}/gain")[0] * (20 - (-12)) - 12
+  else:
+    return mixer.get_value(f"/headamp/{ch + 1:#02}/gain")[0] * (60 - (-12)) - 12
+
+
+def set_gain(ch, x):
+  x = round(x * 2) / 2 # round to 0.5
+  if ch >= 8 and is_XR16:
+    value = max(0, min(0.984375, (x + 12) / (20 - (-12))))
+    mixer.set_value(f"/headamp/{ch + 9:#02}/gain", [value], True)
+    return value * (20 - (-12)) - 12
+  else:
+    value = max(0, min(1, (x + 12) / (60 - (-12))))
+    mixer.set_value(f"/headamp/{ch + 1:#02}/gain", [value], True)
+    return value * (60 - (-12)) - 12
+
+
 def basic_setup_mixer(mixer):
   if tk.messagebox.askyesno(message='Are you sure to reset all mixer settings?'):
     for bus in range(6):
@@ -170,25 +189,6 @@ def configure_rta(channel):
   mixer.set_value("/-prefs/rta/decay", [0], True)       # fastest possible decay
   mixer.set_value("/-prefs/rta/det", [0], True)         # 0: peak, 1: RMS
   mixer.set_value("/-stat/rta/source", [channel], True) # note: zero-based channel number
-
-
-def get_gain(ch):
-  if ch >= 8 and is_XR16:
-    return mixer.get_value(f"/headamp/{ch + 9:#02}/gain")[0] * (20 - (-12)) - 12
-  else:
-    return mixer.get_value(f"/headamp/{ch + 1:#02}/gain")[0] * (60 - (-12)) - 12
-
-
-def set_gain(ch, x):
-  x = round(x * 2) / 2 # round to 0.5
-  if ch >= 8 and is_XR16:
-    value = max(0, min(0.984375, (x + 12) / (20 - (-12))))
-    mixer.set_value(f"/headamp/{ch + 9:#02}/gain", [value], True)
-    return value * (20 - (-12)) - 12
-  else:
-    value = max(0, min(1, (x + 12) / (60 - (-12))))
-    mixer.set_value(f"/headamp/{ch + 1:#02}/gain", [value], True)
-    return value * (60 - (-12)) - 12
 
 
 def send_meters_request_message():
