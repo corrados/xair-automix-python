@@ -98,7 +98,7 @@ def main():
   threading.Timer(0.0, gui_thread).start()
 
 
-def set_gains():
+def apply_optimal_gains():
   with data_mutex:
     for i in range(len_meter2):
       if i < len(channel_dict):
@@ -229,15 +229,15 @@ def receive_meter_messages():
       time.sleep(0.01)
 
 
+def calc_histograms(values):
+  for i in range(len_meter2):
+    histograms[i][int((values[i] + 128) / 129 * hist_len)] += 1
+
+
 def analyze_histogram(histogram):
   max_data_index = len(histogram) - 1 # start value
   while histogram[max_data_index] == 0 and max_data_index > 0: max_data_index -= 1
   return (max_data_index, int(max_data_index / hist_len * 129 - 128))
-
-
-def calc_histograms(values):
-  for i in range(len_meter2):
-    histograms[i][int((values[i] + 128) / 129 * hist_len)] += 1
 
 
 def reset_histograms():
@@ -258,7 +258,7 @@ def gui_thread():
 
   # buttons
   tk.Button(buttons_f, text="Reset Histograms",command=lambda: reset_histograms()).pack(side='left')
-  tk.Button(buttons_f, text="Apply Gains",command=lambda: set_gains()).pack(side='left')
+  tk.Button(buttons_f, text="Apply Gains",command=lambda: apply_optimal_gains()).pack(side='left')
   tk.Button(buttons_f, text="Apply Faders",command=lambda: print("Button Apply Faders pressed")).pack(side='left')
   tk.Button(buttons_f, text="Reset All",command=lambda: basic_setup_mixer(mixer)).pack(side='left')
 
