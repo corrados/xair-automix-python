@@ -99,15 +99,11 @@ def main():
 
 def apply_optimal_gains():
   with data_mutex:
-    for i in range(len_meter2):
-      if i < len(channel_dict):
-        channel_dict[i][1] = get_gain(i) # get current input gains
-        (max_data_index, max_data_value) = analyze_histogram(histograms[i])
-        new_gain = channel_dict[i][1] - (max_data_value - target_max_gain)
-        if new_gain < max_allowed_gain and max_data_value > input_threshold:
-          channel_dict[i][1] = set_gain(i, new_gain)
-        else:
-          channel_dict[i][1] = set_gain(i, 0) # in case channel is not connected, set to 0 dB input gain
+    for ch in range(len(channel_dict)):
+      (max_data_index, max_data_value) = analyze_histogram(histograms[ch])
+      new_gain = get_gain(ch) - (max_data_value - target_max_gain)
+      if new_gain < max_allowed_gain and max_data_value > input_threshold:
+        set_gain(ch, new_gain)
   reset_histograms() # history needs to be reset on updated gain settings
 
 
@@ -141,6 +137,7 @@ def basic_setup_mixer(mixer):
         mixer.set_value(f"/rtn/{rtn + 1}/mix/{bus + 1:#02}/level", [0], True) # default: FX level to lowest value
     for ch in channel_dict:
       inst_group = channel_dict[ch][3]
+      set_gain(ch, channel_dict[ch][1])
       mixer.set_value(f"/ch/{ch + 1:#02}/config/color", [inst_group[0]], True)
       mixer.set_value(f"/ch/{ch + 1:#02}/config/name", [channel_dict[ch][0]], True)
       mixer.set_value(f"/ch/{ch + 1:#02}/config/insrc", [ch], True) # default: linear in/out mapping
@@ -185,14 +182,12 @@ def basic_setup_mixer(mixer):
 
 
 def configure_rta(channel):
-  global mixer
   mixer.set_value("/-prefs/rta/decay", [0], True)       # fastest possible decay
   mixer.set_value("/-prefs/rta/det", [0], True)         # 0: peak, 1: RMS
   mixer.set_value("/-stat/rta/source", [channel], True) # note: zero-based channel number
 
 
 def send_meters_request_message():
-  global mixer
   while not exit_threads:
     mixer.set_value(f'/meters', ['/meters/2'], False) # ALL INPUTS
     mixer.set_value(f'/meters', ['/meters/4'], False) # RTA100
