@@ -209,7 +209,7 @@ def receive_meter_messages():
     if message.address == "/meters/2" or message.address == "/meters/4":
       data = bytearray(message.data[0])
       if len(data) >= 4:
-        size = struct.unpack('i', data[0:4])[0]
+        size = struct.unpack('i', data[:4])[0]
         (values, raw_values) = ([0] * size, [0] * size)
         for i in range(size):
           raw_values[i] = struct.unpack('h', data[4 + i * 2:4 + i * 2 + 2])[0] # signed integer 16 bit
@@ -223,8 +223,8 @@ def receive_meter_messages():
               values = data1[count] / 256
               count += 1
 
-            all_raw_inputs_queue.append(raw_values[0:len_meter2])
-            input_values = values[0:len_meter2]
+            all_raw_inputs_queue.append(raw_values[:len_meter2])
+            input_values = values[:len_meter2]
             calc_histograms(input_values)
           elif message.address == "/meters/4":
             input_rta = values
