@@ -40,20 +40,20 @@ bass    = [2]
 edrums  = [5]
 drums   = [4]
 special = [0]
-channel_dict = { 0:["Click",      0, 100, special, ["NOMIX"]], \
-                 1:["E-Git Mono", 0, 100, guitar], \
-                 2:["Stefan",     0, 100, vocal], \
-                 3:["Miguel",     0, 100, vocal], \
-                 4:["Chris",      0, 100, vocal], \
+channel_dict = { 0:["Click",      0, 101, special, ["NOMIX"]], \
+                 1:["E-Git Mono", 0, 101, guitar], \
+                 2:["Stefan",     0, 101, vocal], \
+                 3:["Miguel",     0, 101, vocal], \
+                 4:["Chris",      0, 101, vocal], \
                  5:["Bass",       0,  25, bass], \
-                 6:["E-Git L",    0, 100, guitar], \
-                 7:["E-Git R",    0, 100, guitar, ["LINK"]], \
-                 8:["A-Git",      0, 100, guitar], \
+                 6:["E-Git L",    0, 101, guitar], \
+                 7:["E-Git R",    0, 101, guitar, ["LINK"]], \
+                 8:["A-Git",      0, 101, guitar], \
                  9:["Kick",       0,  25, drums, ["PHANT"]], \
-                10:["Snare",      0, 100, drums], \
-                11:["Tom1",       0, 100, drums], \
+                10:["Snare",      0, 101, drums], \
+                11:["Tom1",       0,  40, drums], \
                 12:["Tom2",       0,  25, drums], \
-                13:["Overhead",   0, 100, drums, ["PHANT"]], \
+                13:["Overhead",   0, 101, drums, ["PHANT"]], \
                 14:["E-Drum L",   0,  25, edrums], \
                 15:["E-Drum R",   0,  25, edrums, ["LINK"]]}
 busses_dict = { 0:["Stefan Mon"], \
@@ -83,6 +83,7 @@ input_values         = [0] * len_meter2
 input_rta            = [0] * len_meter4
 all_raw_inputs_queue = deque()
 data_mutex           = threading.Lock()
+hp_dict              = {20:0, 25:0.08, 30:0.13, 40:0.23, 51:0.31, 70:0.42, 92:0.51, 101:0.54, 153:0.68}
 
 
 def main():
@@ -152,17 +153,8 @@ def basic_setup_mixer(mixer):
       mixer.set_value(f"/ch/{ch + 1:#02}/gate/on", [0], True)       # default: gate off
       mixer.set_value(f"/ch/{ch + 1:#02}/dyn/on", [0], True)        # default: compressor off
       mixer.set_value(f"/ch/{ch + 1:#02}/eq/on", [1], True)         # default: EQ on
-      mixer.set_value(f"/ch/{ch + 1:#02}/preamp/hpon", [0], True)   # default: high-pass off
-
-      # TODO this is not yet working -> setting the HP filter frequency
-      #mixer.set_value(f"/ch/{ch + 1:#02}/preamp/hpon", [1], True)   # default: high-pass on
-      ##print((channel_dict[ch][2] - 20) / (200 - 20))
-      #channel_dict[ch][2]=167
-      #x = (channel_dict[ch][2] - 20) / 148.9
-      #print(x)
-      #mixer.set_value(f"/ch/{ch + 1:#02}/preamp/hpf", [x], False)
-      ##mixer.set_value(f"/ch/{ch + 1:#02}/preamp/hpf", [0], False)
-
+      mixer.set_value(f"/ch/{ch + 1:#02}/preamp/hpon", [1], True)   # default: high-pass on
+      mixer.set_value(f"/ch/{ch + 1:#02}/preamp/hpf", [hp_dict[channel_dict[ch][2]]], False) # only values in hp_dict allowed
       for i in range(4):
         mixer.set_value(f"/ch/{ch + 1:#02}/eq/{i + 1}/type", [2], True) # default: EQ, PEQ
         mixer.set_value(f"/ch/{ch + 1:#02}/eq/{i + 1}/g", [0.5], True)  # default: EQ, 0 dB gain
