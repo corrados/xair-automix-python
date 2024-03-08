@@ -32,6 +32,7 @@ from collections import deque
 import matplotlib.pyplot as plt # TODO somehow needed for "messagebox.askyesno"?
 import tkinter as tk
 from tkinter import ttk
+from scipy.optimize import curve_fit
 
 # mixer channel setup, channel_dict: [name, gain, HP, group, special]
 vocal   = [1]
@@ -100,7 +101,7 @@ def main():
 def apply_optimal_gains():
   with data_mutex:
     for ch in range(len(channel_dict)):
-      (max_data_index, max_data_value) = analyze_histogram(histograms[ch])
+      (max_data_index, max_data_value) = analyze_histogram(ch)
       new_gain = get_gain(ch) - (max_data_value - target_max_gain)
       if new_gain < max_allowed_gain and max_data_value > input_threshold:
         set_gain(ch, new_gain)
@@ -239,16 +240,56 @@ def calc_histograms(values):
     histograms[i][int((values[i] + 128) / 129 * hist_len)] += 1
 
 
-def analyze_histogram(histogram):
+
+# TEST
+#def func(x, a, b, c):
+#  return a * numpy.exp(-b * x) + c
+#def func(x, a, b):
+#  return a * x + b
+def func(x, a, b, c):
+  return a * numpy.exp(-1 / 2 * numpy.square((x - c) / b))
+
+
+
+def analyze_histogram(ch):
+  global hist_models
+  histogram = histograms[ch]
   max_data_index = len(histogram) - 1 # start value
   while histogram[max_data_index] == 0 and max_data_index > 0: max_data_index -= 1
+
+  # TEST
+  #print(histogram)
+  x = []
+  start_found = False
+  stop_found = False
+  for y in histogram:
+    if y > 0 and not stop_found:
+      start_found = True
+      x.append(y)
+    else:
+      if start_found:
+        stop_found = True
+
+  #print(x)
+  if len(x) > 10 and max(x) > 10:
+    #print(x)
+    (popt, pcov) = curve_fit(func, range(len(x)), x)
+    #print(popt)
+    hist_models[ch] = []
+    for i in range(len(x)):
+      hist_models[ch].append(func(i, popt[0], popt[1], popt[2]))
+
+  #(popt, pcov) = curve_fit(func, range(len(histogram)), histogram)
+  #print(popt)
+
   return (max_data_index, int(max_data_index / hist_len * 129 - 128))
 
 
 def reset_histograms():
-  global histograms
+  global histograms, hist_models
   with data_mutex:
-    histograms = [[0] * hist_len for i in range(len_meter2)]
+    histograms  = [[0] * hist_len for i in range(len_meter2)]
+    hist_models = [[0] * hist_len for i in range(len_meter2)]
 
 
 def gui_thread():
@@ -298,16 +339,16 @@ def gui_thread():
       with data_mutex: # lock mutex as short as possible
         input_values_copy = input_values
         input_rta_copy    = input_rta
-      for i in range(len_meter2):
-        input_bars[i].set((input_values_copy[i] / 128 + 1) * 100)
-        (max_data_index, max_data_value) = analyze_histogram(histograms[i])
+      for ch in range(len_meter2):
+        input_bars[ch].set((input_values_copy[ch] / 128 + 1) * 100)
+        (max_data_index, max_data_value) = analyze_histogram(ch)
         if max_data_value > target_max_gain + 6:
-          input_labels[i].config(text=max_data_value, bg="red")
+          input_labels[ch].config(text=max_data_value, bg="red")
         else:
           if max_data_value > target_max_gain:
-            input_labels[i].config(text=max_data_value, bg="yellow")
+            input_labels[ch].config(text=max_data_value, bg="yellow")
           else:
-            input_labels[i].config(text=max_data_value, bg=window_color)
+            input_labels[ch].config(text=max_data_value, bg=window_color)
 
       rta.delete("all")
       for i in range(len_meter4):
@@ -315,7 +356,7 @@ def gui_thread():
         y = (input_rta_copy[i] / 128 + 1) * rta_hist_height
         rta.create_line(x, rta_hist_height, x, rta_hist_height - y, fill="#476042", width=rta_line_width)
 
-      (max_data_index, max_data_value) = analyze_histogram(histograms[channel])
+      (max_data_index, max_data_value) = analyze_histogram(channel)
       max_hist  = max(histograms[channel])
       max_index = numpy.argmax(histograms[channel])
       if max_hist > 0:
@@ -326,13 +367,24 @@ def gui_thread():
           color = "blue" if i == max_index else "red" if i == max_data_index else "#476042"
           hist.create_line(x, rta_hist_height, x, rta_hist_height - y, fill=color, width=hist_line_width)
 
+
+        # TEST
+        for i in range(len(hist_models[channel])):
+          if max(hist_models[channel]) > 0:
+            x = hist_line_width + i * hist_line_width + i
+            y = hist_models[channel][i] * rta_hist_height / max(hist_models[channel])
+            #print(y)
+            hist.create_line(x, rta_hist_height, x, rta_hist_height - y, fill="red", width=2)
+
+
       if int(channel_sel.get()) - 1 is not channel:
         channel = int(channel_sel.get()) - 1
         configure_rta(channel) # configure_rta(31) # 31: MainLR on XAIR16
 
       window.update()
       time.sleep(meter_update_s)
-    except:
+    except e:
+      print(e)
       exit_threads = True
 
 
