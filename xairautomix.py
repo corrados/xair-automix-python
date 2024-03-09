@@ -56,12 +56,12 @@ channel_dict = { 0:["Click",      1.5, 101, special, ["NOMIX"]], \
                 13:["Overhead",    -5, 101, drums, ["PHANT"]], \
                 14:["E-Drum L",    -5,  25, edrums], \
                 15:["E-Drum R",    -5,  25, edrums, ["LINK"]]}
-busses_dict = { 0:["Stefan Mon",   [-90,   0, -90,  0,   0,  0, -90, -90, -90, -3, -6, -6, -6, -3,  0,  0]], \
-                1:["Chris Mon",    [-90, -90,   0,  0, -90,  0, -90, -90,   0, -3, -6, -6, -6, -3,  0,  0]], \
-                2:["Miguel Mon L", [-90, -90,  -6, -3,  -6,  0,  -6,  -6,  -6, -3, -6, -6, -6, -3,  0,  0]], \
-                3:["Miguel Mon R", [-90, -90,  -6, -3,  -6,  0,  -6,  -6,  -6, -3, -6, -6, -6, -3,  0,  0], ["LINK"]], \
-                4:["Volker Mon L", [-90, -90,  -6, -6,  -6, -6,  -6,  -6,  -6, -3, -6, -6, -6, -3,  0,  0]], \
-                5:["Volker Mon R", [  0, -90,  -6, -6,  -6, -6,  -6,  -6,  -6,  0,  0,  0,  0,  0,  0,  0], ["LINK"]]}
+busses_dict = { 0:["Stefan Mon",   [-90,   0, -90,  0,   0,  0, -90, -90, -90, -3, -6, -6, -6, -3, -3, -3], -10          ], \
+                1:["Chris Mon",    [-90, -90,   0,  0, -90,  0, -90, -90,   0, -3, -6, -6, -6, -3, -3, -3], -10          ], \
+                2:["Miguel Mon L", [-90, -90,  -6, -3,  -6,  0,  -6,  -6,  -6, -3, -6, -6, -6, -3, -3, -3], -10          ], \
+                3:["Miguel Mon R", [-90, -90,  -6, -3,  -6,  0,  -6,  -6,  -6, -3, -6, -6, -6, -3, -3, -3], -10, ["LINK"]], \
+                4:["Volker Mon L", [-90, -90,  -6, -6,  -6, -6,  -6,  -6,  -6,  0,  0,  0,  0,  0,  0,  0], -10          ], \
+                5:["Volker Mon R", [  0, -90,  -6, -6,  -6, -6,  -6,  -6,  -6,  0,  0,  0,  0,  0,  0,  0], -10, ["LINK"]]}
 
 use_recorded_data = True # TEST
 target_max_gain  = -15 # dB
@@ -127,7 +127,7 @@ def set_gain(ch, x):
     return value * (60 - (-12)) - 12
 
 
-def db_to_float(d): # based on UNOFFICIAL_X32_OSC_REMOTE_PROTOCOL.pdf
+def db_to_float(d, is_bus=False): # based on UNOFFICIAL_X32_OSC_REMOTE_PROTOCOL.pdf
   if d < -60:
     f = (d + 90) / 480
   elif d < -30:
@@ -136,17 +136,18 @@ def db_to_float(d): # based on UNOFFICIAL_X32_OSC_REMOTE_PROTOCOL.pdf
     f = (d + 50) / 80
   else:
     f = (d + 30) / 40
-  return round(f * 160) / 160
+  return round(f * 160) / 160 if is_bus else round(f * 1023) / 1023
 
 
 def basic_setup_mixer(mixer):
   if tk.messagebox.askyesno(message='Are you sure to reset all mixer settings?'):
     for bus in range(6):
       mixer.set_value(f"/bus/{bus + 1}/config/name", [busses_dict[bus][0]], True)
+      mixer.set_value(f"/bus/{bus + 1}/mix/fader", [db_to_float(busses_dict[bus][2])], True)
       mixer.set_value(f"/bus/{bus + 1}/config/color", [3], True) # default: monitor busses are in yellow
       mixer.set_value(f"/bus/{bus + 1}/eq/on", [0], True)        # default: bus EQ off
-      if len(busses_dict[bus]) > 2: # special bus settings
-        if "LINK" in busses_dict[bus][2] and bus % 2 == 1:
+      if len(busses_dict[bus]) > 3: # special bus settings
+        if "LINK" in busses_dict[bus][3] and bus % 2 == 1:
           mixer.set_value(f"/config/buslink/{bus}-{bus + 1}", [1], True)
       for rtn in range(4):
         mixer.set_value(f"/rtn/{rtn + 1}/mix/{bus + 1:#02}/level", [0], True) # default: FX level to lowest value
@@ -175,7 +176,7 @@ def basic_setup_mixer(mixer):
       for bus in range(9):
         mixer.set_value(f"/ch/{ch + 1:#02}/mix/{bus + 1:#02}/tap", [3], True) # default: bus Pre Fader
         if bus < len(busses_dict):
-          mixer.set_value(f"/ch/{ch + 1:#02}/mix/{bus + 1:#02}/level", [db_to_float(busses_dict[bus][1][ch])], True)
+          mixer.set_value(f"/ch/{ch + 1:#02}/mix/{bus + 1:#02}/level", [db_to_float(busses_dict[bus][1][ch], True)], True)
         else:
           mixer.set_value(f"/ch/{ch + 1:#02}/mix/{bus + 1:#02}/level", [0], True)
       for bus in range(0, 6, 2): # adjust pan in send busses per channel (every second bus)
