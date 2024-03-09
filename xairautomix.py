@@ -40,33 +40,33 @@ bass    = [2]
 edrums  = [5]
 drums   = [4]
 special = [0]
-channel_dict = { 0:["Click",      0, 101, special, ["NOMIX"]], \
-                 1:["E-Git Mono", 0, 101, guitar], \
-                 2:["Stefan",     0, 101, vocal], \
-                 3:["Miguel",     0, 101, vocal], \
-                 4:["Chris",      0, 101, vocal], \
-                 5:["Bass",       0,  25, bass], \
-                 6:["E-Git L",    0, 101, guitar], \
-                 7:["E-Git R",    0, 101, guitar, ["LINK"]], \
-                 8:["A-Git",      0, 101, guitar], \
-                 9:["Kick",       0,  25, drums, ["PHANT"]], \
-                10:["Snare",      0, 101, drums], \
-                11:["Tom1",       0,  40, drums], \
-                12:["Tom2",       0,  25, drums], \
-                13:["Overhead",   0, 101, drums, ["PHANT"]], \
-                14:["E-Drum L",   0,  25, edrums], \
-                15:["E-Drum R",   0,  25, edrums, ["LINK"]]}
-busses_dict = { 0:["Stefan Mon"], \
-                1:["Chris Mon"], \
-                2:["Miguel Mon L"], \
-                3:["Miguel Mon R", ["LINK"]], \
-                4:["Volker Mon L"], \
-                5:["Volker Mon R", ["LINK"]]}
+channel_dict = { 0:["Click",      1.5, 101, special, ["NOMIX"]], \
+                 1:["E-Git Mono",  -6, 101, guitar], \
+                 2:["Stefan",      23, 101, vocal], \
+                 3:["Miguel",      29, 101, vocal], \
+                 4:["Chris",       18, 101, vocal], \
+                 5:["Bass",         6,  25, bass], \
+                 6:["E-Git L",     13, 101, guitar], \
+                 7:["E-Git R",     13, 101, guitar, ["LINK"]], \
+                 8:["A-Git",      -12, 101, guitar], \
+                 9:["Kick",        -2,  25, drums, ["PHANT"]], \
+                10:["Snare",       -9, 101, drums], \
+                11:["Tom1",        -5,  40, drums], \
+                12:["Tom2",        -5,  25, drums], \
+                13:["Overhead",    -5, 101, drums, ["PHANT"]], \
+                14:["E-Drum L",    -5,  25, edrums], \
+                15:["E-Drum R",    -5,  25, edrums, ["LINK"]]}
+busses_dict = { 0:["Stefan Mon",   [-90,   0, -90,  0,   0,  0, -90, -90, -90, -3, -6, -6, -6, -3,  0,  0]], \
+                1:["Chris Mon",    [-90, -90,   0,  0, -90,  0, -90, -90,   0, -3, -6, -6, -6, -3,  0,  0]], \
+                2:["Miguel Mon L", [-90, -90,  -6, -3,  -6,  0,  -6,  -6,  -6, -3, -6, -6, -6, -3,  0,  0]], \
+                3:["Miguel Mon R", [-90, -90,  -6, -3,  -6,  0,  -6,  -6,  -6, -3, -6, -6, -6, -3,  0,  0], ["LINK"]], \
+                4:["Volker Mon L", [-90, -90,  -6, -6,  -6, -6,  -6,  -6,  -6, -3, -6, -6, -6, -3,  0,  0]], \
+                5:["Volker Mon R", [  0, -90,  -6, -6,  -6, -6,  -6,  -6,  -6,  0,  0,  0,  0,  0,  0,  0], ["LINK"]]}
 
 use_recorded_data = True # TEST
 target_max_gain  = -15 # dB
 input_threshold  = -50 # dB
-max_allowed_gain = 40 # dB
+max_allowed_gain =  40 # dB
 
 channel              = -1  # initialize with invalid channel
 len_meter2           = 18  # ALL INPUTS (16 mic, 2 aux, 18 usb = 36 values total but we only need the mic inputs)
@@ -127,13 +127,26 @@ def set_gain(ch, x):
     return value * (60 - (-12)) - 12
 
 
+def db_to_float(d): # taken from UNOFFICIAL_X32_OSC_REMOTE_PROTOCOL.pdf
+  if d < -60:
+    f = (d + 90) / 480
+  elif d < -30:
+    f = (d + 70) / 160
+  elif d < -10:
+    f = (d + 50) / 80
+  else:
+    f = (d + 30) / 40
+  return f#round(f * 1023) / 1023
+
+
 def basic_setup_mixer(mixer):
   if tk.messagebox.askyesno(message='Are you sure to reset all mixer settings?'):
     for bus in range(6):
       mixer.set_value(f"/bus/{bus + 1}/config/name", [busses_dict[bus][0]], True)
-      mixer.set_value(f"/bus/{bus + 1}/eq/on", [0], True) # default: bus EQ off
-      if len(busses_dict[bus]) > 1: # special bus settings
-        if "LINK" in busses_dict[bus][1] and bus % 2 == 1:
+      mixer.set_value(f"/bus/{bus + 1}/config/color", [3], True) # default: monitor busses are in yellow
+      mixer.set_value(f"/bus/{bus + 1}/eq/on", [0], True)        # default: bus EQ off
+      if len(busses_dict[bus]) > 2: # special bus settings
+        if "LINK" in busses_dict[bus][2] and bus % 2 == 1:
           mixer.set_value(f"/config/buslink/{bus}-{bus + 1}", [1], True)
       for rtn in range(4):
         mixer.set_value(f"/rtn/{rtn + 1}/mix/{bus + 1:#02}/level", [0], True) # default: FX level to lowest value
@@ -159,8 +172,13 @@ def basic_setup_mixer(mixer):
       for i in range(4):
         mixer.set_value(f"/ch/{ch + 1:#02}/eq/{i + 1}/type", [2], True) # default: EQ, PEQ
         mixer.set_value(f"/ch/{ch + 1:#02}/eq/{i + 1}/g", [0.5], True)  # default: EQ, 0 dB gain
-      for i in range(9):
-        mixer.set_value(f"/ch/{ch + 1:#02}/mix/{i + 1:#02}/level", [0], True) # default: sends to lowest value
+      for bus in range(9):
+        mixer.set_value(f"/ch/{ch + 1:#02}/mix/{bus + 1:#02}/tap", [3], True) # default: bus Pre Fader
+        if bus < len(busses_dict):
+          x = db_to_float(busses_dict[bus][1][ch])
+          mixer.set_value(f"/ch/{ch + 1:#02}/mix/{bus + 1:#02}/level", [x], True)
+        else:
+          mixer.set_value(f"/ch/{ch + 1:#02}/mix/{bus + 1:#02}/level", [0], True)
       for bus in range(0, 6, 2): # adjust pan in send busses per channel (every second bus)
         mixer.set_value(f"/ch/{ch + 1:#02}/mix/{bus + 1:#02}/pan", [0.5], True) # default: middle position
       if ch % 2 == 1:
