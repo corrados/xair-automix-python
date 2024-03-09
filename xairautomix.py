@@ -175,8 +175,7 @@ def basic_setup_mixer(mixer):
       for bus in range(9):
         mixer.set_value(f"/ch/{ch + 1:#02}/mix/{bus + 1:#02}/tap", [3], True) # default: bus Pre Fader
         if bus < len(busses_dict):
-          x = db_to_float(busses_dict[bus][1][ch])
-          mixer.set_value(f"/ch/{ch + 1:#02}/mix/{bus + 1:#02}/level", [x], True)
+          mixer.set_value(f"/ch/{ch + 1:#02}/mix/{bus + 1:#02}/level", [db_to_float(busses_dict[bus][1][ch])], True)
         else:
           mixer.set_value(f"/ch/{ch + 1:#02}/mix/{bus + 1:#02}/level", [0], True)
       for bus in range(0, 6, 2): # adjust pan in send busses per channel (every second bus)
