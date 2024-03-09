@@ -127,7 +127,7 @@ def set_gain(ch, x):
     return value * (60 - (-12)) - 12
 
 
-def db_to_float(d): # taken from UNOFFICIAL_X32_OSC_REMOTE_PROTOCOL.pdf
+def db_to_float(d): # based on UNOFFICIAL_X32_OSC_REMOTE_PROTOCOL.pdf
   if d < -60:
     f = (d + 90) / 480
   elif d < -30:
@@ -136,7 +136,7 @@ def db_to_float(d): # taken from UNOFFICIAL_X32_OSC_REMOTE_PROTOCOL.pdf
     f = (d + 50) / 80
   else:
     f = (d + 30) / 40
-  return f#round(f * 1023) / 1023
+  return round(f * 160) / 160
 
 
 def basic_setup_mixer(mixer):
