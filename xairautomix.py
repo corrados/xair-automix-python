@@ -46,9 +46,9 @@ drums   = [4]
 special = [0]
 channel_dict = { 0:["Click",      1.5, 101, special, ["NOMIX"]], \
                  1:["E-Git Mono",  -6, 101, guitar], \
-                 2:["Stefan",      23, 101, vocal], \
-                 3:["Miguel",      29, 101, vocal], \
-                 4:["Chris",       18, 101, vocal], \
+                 2:["Stefan",      23, 121, vocal], \
+                 3:["Miguel",      29, 121, vocal], \
+                 4:["Chris",       18, 121, vocal], \
                  5:["Bass",         6,  25, bass], \
                  6:["E-Git L",     13, 101, guitar], \
                  7:["E-Git R",     13, 101, guitar, ["LINK"]], \
@@ -87,7 +87,7 @@ input_values         = [0] * len_meter2
 input_rta            = [0] * len_meter4
 all_raw_inputs_queue = deque()
 data_mutex           = threading.Lock()
-hp_dict              = {20:0, 25:0.08, 30:0.13, 40:0.23, 51:0.31, 70:0.42, 92:0.51, 101:0.54, 153:0.68}
+hp_dict              = {20:0, 25:0.08, 30:0.13, 40:0.23, 51:0.31, 70:0.42, 92:0.51, 101:0.54, 121:0.6, 153:0.68}
 
 
 def main():
