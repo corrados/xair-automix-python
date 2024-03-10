@@ -23,6 +23,10 @@
 #           https://mediadl.musictribe.com/download/software/behringer/XAIR/X%20AIR%20Remote%20Control%20Protocol.pdf
 # According to https://www.youtube.com/watch?v=EilVDp39A9g -> input gain level should be -18 dB
 #                                                          -> high pass on guitar/vocal at 100 Hz, bass at 20-30 Hz
+# According to https://www.youtube.com/watch?v=nF0uezOA4UA&t=386s -> vocal high pass at 120-180 Hz,
+# -> vocal compression: ratio:3, attack: 10 ms, hold: 0 ms, release: 50 ms, gain: +6 dB, gain reduction meter: approx. -6 dB
+# Behringer: vocal compression: ratio:3, attach: 10 ms, hold: 10 ms, release: 151 ms, gain: +6 dB, self filter: type: 3,
+#                               frequency 611 Hz
 
 import sys, threading, time, struct, numpy
 sys.path.append('python-x32/src')
@@ -34,7 +38,7 @@ import tkinter as tk
 from tkinter import ttk
 
 # mixer channel setup, channel_dict: [name, gain, HP, group, special]
-vocal   = [1]
+vocal   = [1, ["VOCALDYN"]]
 guitar  = [3]
 bass    = [2]
 edrums  = [5]
@@ -168,6 +172,24 @@ def basic_setup_mixer(mixer):
       mixer.set_value(f"/ch/{ch + 1:#02}/mix/pan", [0.5], True)     # default: middle position
       mixer.set_value(f"/ch/{ch + 1:#02}/gate/on", [0], True)       # default: gate off
       mixer.set_value(f"/ch/{ch + 1:#02}/dyn/on", [0], True)        # default: compressor off
+      if len(inst_group) > 1 and "VOCALDYN" in inst_group[1]:               # vocal dynamic presets:
+        mixer.set_value(f"/ch/{ch + 1:#02}/dyn/on", [1], True)              # vocal default: compresser on
+        mixer.set_value(f"/ch/{ch + 1:#02}/dyn/mode", [0], True)            # vocal default: compresser mode
+        mixer.set_value(f"/ch/{ch + 1:#02}/dyn/auto", [0], True)            # vocal default: auto compresser off
+        mixer.set_value(f"/ch/{ch + 1:#02}/dyn/knee", [0.4], True)          # vocal default: knee 2
+        mixer.set_value(f"/ch/{ch + 1:#02}/dyn/det", [0], True)             # vocal default: det PEAK
+        mixer.set_value(f"/ch/{ch + 1:#02}/dyn/env", [1], True)             # vocal default: env LOG
+        mixer.set_value(f"/ch/{ch + 1:#02}/dyn/ratio", [5], True)           # vocal default: ratio 3
+        mixer.set_value(f"/ch/{ch + 1:#02}/dyn/mix", [1.0], True)           # vocal default: mix 100 %
+        mixer.set_value(f"/ch/{ch + 1:#02}/dyn/mgain", [0.25], True)        # vocal default: gain 6 dB
+        mixer.set_value(f"/ch/{ch + 1:#02}/dyn/attack", [0.08333333], True) # vocal default: attach 10 ms
+        mixer.set_value(f"/ch/{ch + 1:#02}/dyn/hold", [0.54], True)         # vocal default: hold 10 ms
+        mixer.set_value(f"/ch/{ch + 1:#02}/dyn/release", [0.45], True)      # vocal default: hold 101 ms
+        mixer.set_value(f"/ch/{ch + 1:#02}/dyn/filter/on", [1], True)       # vocal default: filter on
+        mixer.set_value(f"/ch/{ch + 1:#02}/dyn/filter/type", [6], True)     # vocal default: filter type 3
+        mixer.set_value(f"/ch/{ch + 1:#02}/dyn/filter/f", [0.495], True)    # vocal default: filter 611 Hz
+        mixer.set_value(f"/ch/{ch + 1:#02}/dyn/keysrc", [0], True)          # vocal default: key source SELF
+        mixer.set_value(f"/ch/{ch + 1:#02}/dyn/thr", [1.0], True)           # vocal default: threshold 0 dB
       mixer.set_value(f"/ch/{ch + 1:#02}/eq/on", [1], True)         # default: EQ on
       mixer.set_value(f"/ch/{ch + 1:#02}/preamp/hpon", [1], True)   # default: high-pass on
       mixer.set_value(f"/ch/{ch + 1:#02}/preamp/hpf", [hp_dict[channel_dict[ch][2]]], False) # only values in hp_dict allowed
@@ -259,6 +281,7 @@ def analyze_histogram(histogram):
 
 
 
+# TEST
 def detect_feedback():
   with data_mutex: # lock mutex as short as possible
     input_rta_copy = input_rta
