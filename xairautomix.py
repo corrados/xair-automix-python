@@ -91,6 +91,7 @@ def main():
   reset_histograms()
   mixer   = x32.BehringerX32([], 10300, False, 10) # search for a mixer
   is_XR16 = "XR16" in mixer.get_value("/info")[2]
+  configure_rta(31) # 31: MainLR on XAIR16
   # start separate threads
   threading.Timer(0.0, send_meters_request_message).start()
   threading.Timer(0.0, receive_meter_messages).start()
@@ -256,6 +257,23 @@ def analyze_histogram(histogram):
   return (max_data_index, int(max_data_index / hist_len * 129 - 128))
 
 
+
+
+def detect_feedback():
+  with data_mutex: # lock mutex as short as possible
+    input_rta_copy = input_rta
+  max_index = numpy.argmax(input_rta_copy)
+  if max_index > 1 and max_index < len(input_rta_copy) - 2:
+    threshold_dB = 35
+    max_value = input_rta_copy[max_index]
+    if (input_rta_copy[max_index + 2] < max_value - threshold_dB and
+        input_rta_copy[max_index - 2] < max_value - threshold_dB):
+      # TODO check for how long the same max index is present (> 1 second, e.g.)
+      print((max_value, max_index))
+
+
+
+
 def reset_histograms():
   global histograms
   with data_mutex:
@@ -339,7 +357,10 @@ def gui_thread():
 
       if int(channel_sel.get()) - 1 is not channel:
         channel = int(channel_sel.get()) - 1
-        configure_rta(channel) # configure_rta(31) # 31: MainLR on XAIR16
+        #configure_rta(channel) # configure_rta(31) # 31: MainLR on XAIR16
+
+      # TEST
+      detect_feedback()
 
       window.update()
       time.sleep(meter_update_s)
