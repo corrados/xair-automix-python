@@ -172,6 +172,9 @@ def basic_setup_mixer(mixer):
       mixer.set_value(f"/ch/{ch + 1:#02}/mix/pan", [0.5], True)     # default: middle position
       mixer.set_value(f"/ch/{ch + 1:#02}/gate/on", [0], True)       # default: gate off
       mixer.set_value(f"/ch/{ch + 1:#02}/dyn/on", [0], True)        # default: compressor off
+      mixer.set_value(f"/ch/{ch + 1:#02}/eq/on", [1], True)         # default: EQ on
+      mixer.set_value(f"/ch/{ch + 1:#02}/preamp/hpon", [1], True)   # default: high-pass on
+      mixer.set_value(f"/ch/{ch + 1:#02}/preamp/hpf", [hp_dict[channel_dict[ch][2]]], False) # only values in hp_dict allowed
       if len(inst_group) > 1 and "VOCALDYN" in inst_group[1]:               # vocal dynamic presets:
         mixer.set_value(f"/ch/{ch + 1:#02}/dyn/on", [1], True)              # vocal default: compresser on
         mixer.set_value(f"/ch/{ch + 1:#02}/dyn/mode", [0], True)            # vocal default: compresser mode
@@ -190,9 +193,6 @@ def basic_setup_mixer(mixer):
         mixer.set_value(f"/ch/{ch + 1:#02}/dyn/filter/f", [0.495], True)    # vocal default: filter 611 Hz
         mixer.set_value(f"/ch/{ch + 1:#02}/dyn/keysrc", [0], True)          # vocal default: key source SELF
         mixer.set_value(f"/ch/{ch + 1:#02}/dyn/thr", [1.0], True)           # vocal default: threshold 0 dB
-      mixer.set_value(f"/ch/{ch + 1:#02}/eq/on", [1], True)         # default: EQ on
-      mixer.set_value(f"/ch/{ch + 1:#02}/preamp/hpon", [1], True)   # default: high-pass on
-      mixer.set_value(f"/ch/{ch + 1:#02}/preamp/hpf", [hp_dict[channel_dict[ch][2]]], False) # only values in hp_dict allowed
       for i in range(4):
         mixer.set_value(f"/ch/{ch + 1:#02}/eq/{i + 1}/type", [2], True) # default: EQ, PEQ
         mixer.set_value(f"/ch/{ch + 1:#02}/eq/{i + 1}/g", [0.5], True)  # default: EQ, 0 dB gain
