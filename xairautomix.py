@@ -67,6 +67,33 @@ busses_dict = { 0:["Stefan Mon",   [-90,   0, -90,  0,   0,  0, -90, -90, -90, -
                 4:["Volker Mon L", [-90, -90,  -6, -6,  -6, -6,  -6,  -6,  -6,  0,  0,  0,  0,  0,  0,  0], -10          ], \
                 5:["Volker Mon R", [  0, -90,  -6, -6,  -6, -6,  -6,  -6,  -6,  0,  0,  0,  0,  0,  0,  0], -10, ["LINK"]]}
 
+
+
+
+# TEST drum EQs {Gain, Freq, Qual}
+# snare -> low-cut: 92
+# {3, 7.09k, 2.8}
+# {-3, 232.3, 3.1}
+# {-2.5, 990.9, 3.5}
+# kick
+# {3, 58.3, 2}
+# {-3.75, 158.9, 1.4}
+# {5.75, 10.02k, 2}
+# Tom1
+# {-6.25, 701.5, 1.1}
+# {4.5, 3.20k, 1.7}
+# {3, 133.7, 1.8}
+# Tom2
+# {4, 85.3, 2}
+# {4.25, 3.43k, 2}
+# {-6.75, 550.8, 0.7}
+# overhead
+# {LCut, 1.49k}
+
+
+
+
+
 use_recorded_data = True # TEST
 target_max_gain  = -15 # dB
 input_threshold  = -50 # dB
@@ -175,24 +202,24 @@ def basic_setup_mixer(mixer):
       mixer.set_value(f"/ch/{ch + 1:#02}/eq/on", [1], True)         # default: EQ on
       mixer.set_value(f"/ch/{ch + 1:#02}/preamp/hpon", [1], True)   # default: high-pass on
       mixer.set_value(f"/ch/{ch + 1:#02}/preamp/hpf", [hp_dict[channel_dict[ch][2]]], False) # only values in hp_dict allowed
+      mixer.set_value(f"/ch/{ch + 1:#02}/dyn/keysrc", [0], True)    # default comp: key source SELF
+      mixer.set_value(f"/ch/{ch + 1:#02}/dyn/mode", [0], True)      # default comp: compresser mode
+      mixer.set_value(f"/ch/{ch + 1:#02}/dyn/auto", [0], True)      # default comp: auto compresser off
+      mixer.set_value(f"/ch/{ch + 1:#02}/dyn/knee", [0.4], True)    # default comp: knee 2
+      mixer.set_value(f"/ch/{ch + 1:#02}/dyn/det", [0], True)       # default comp: det PEAK
+      mixer.set_value(f"/ch/{ch + 1:#02}/dyn/env", [1], True)       # default comp: env LOG
+      mixer.set_value(f"/ch/{ch + 1:#02}/dyn/mix", [1.0], True)     # default comp: mix 100 %
+      mixer.set_value(f"/ch/{ch + 1:#02}/dyn/thr", [1.0], True)     # default comp: threshold 0 dB
       if len(inst_group) > 1 and "VOCALDYN" in inst_group[1]:               # vocal dynamic presets:
         mixer.set_value(f"/ch/{ch + 1:#02}/dyn/on", [1], True)              # vocal default: compresser on
-        mixer.set_value(f"/ch/{ch + 1:#02}/dyn/mode", [0], True)            # vocal default: compresser mode
-        mixer.set_value(f"/ch/{ch + 1:#02}/dyn/auto", [0], True)            # vocal default: auto compresser off
-        mixer.set_value(f"/ch/{ch + 1:#02}/dyn/knee", [0.4], True)          # vocal default: knee 2
-        mixer.set_value(f"/ch/{ch + 1:#02}/dyn/det", [0], True)             # vocal default: det PEAK
-        mixer.set_value(f"/ch/{ch + 1:#02}/dyn/env", [1], True)             # vocal default: env LOG
         mixer.set_value(f"/ch/{ch + 1:#02}/dyn/ratio", [5], True)           # vocal default: ratio 3
-        mixer.set_value(f"/ch/{ch + 1:#02}/dyn/mix", [1.0], True)           # vocal default: mix 100 %
         mixer.set_value(f"/ch/{ch + 1:#02}/dyn/mgain", [0.25], True)        # vocal default: gain 6 dB
-        mixer.set_value(f"/ch/{ch + 1:#02}/dyn/attack", [0.08333333], True) # vocal default: attach 10 ms
+        mixer.set_value(f"/ch/{ch + 1:#02}/dyn/attack", [0.08333333], True) # vocal default: attack 10 ms
         mixer.set_value(f"/ch/{ch + 1:#02}/dyn/hold", [0.54], True)         # vocal default: hold 10 ms
-        mixer.set_value(f"/ch/{ch + 1:#02}/dyn/release", [0.45], True)      # vocal default: hold 101 ms
+        mixer.set_value(f"/ch/{ch + 1:#02}/dyn/release", [0.45], True)      # vocal default: release 101 ms
         mixer.set_value(f"/ch/{ch + 1:#02}/dyn/filter/on", [1], True)       # vocal default: filter on
         mixer.set_value(f"/ch/{ch + 1:#02}/dyn/filter/type", [6], True)     # vocal default: filter type 3
         mixer.set_value(f"/ch/{ch + 1:#02}/dyn/filter/f", [0.495], True)    # vocal default: filter 611 Hz
-        mixer.set_value(f"/ch/{ch + 1:#02}/dyn/keysrc", [0], True)          # vocal default: key source SELF
-        mixer.set_value(f"/ch/{ch + 1:#02}/dyn/thr", [1.0], True)           # vocal default: threshold 0 dB
       for i in range(4):
         mixer.set_value(f"/ch/{ch + 1:#02}/eq/{i + 1}/type", [2], True) # default: EQ, PEQ
         mixer.set_value(f"/ch/{ch + 1:#02}/eq/{i + 1}/g", [0.5], True)  # default: EQ, 0 dB gain
@@ -225,6 +252,7 @@ def send_meters_request_message():
   while not exit_threads:
     mixer.set_value(f'/meters', ['/meters/2'], False) # ALL INPUTS
     mixer.set_value(f'/meters', ['/meters/4'], False) # RTA100
+    #mixer.set_value(f'/meters', ['/meters/6'], False) # ALL DYN
     if not exit_threads: time.sleep(1) # every second update meters request
 
 
