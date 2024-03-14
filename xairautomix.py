@@ -53,10 +53,10 @@ channel_dict = { 0:["Click",      1.5, 101, [], special, ["NOMIX"]], \
                  6:["E-Git L",     13, 101, [], guitar], \
                  7:["E-Git R",     13, 101, [], guitar, ["LINK"]], \
                  8:["A-Git",      -12, 101, [], guitar], \
-                 9:["Kick",        -2,  25, [], drums, ["PHANT"]], \
-                10:["Snare",       -9, 101, [[3, 7090, 2.8], [-3, 232.3, 3.1], [-2.5, 990.9, 3.5]], drums], \
-                11:["Tom1",        -5,  40, [], drums], \
-                12:["Tom2",        -5,  25, [], drums], \
+                 9:["Kick",        -2,  25, [[3, 58.3, 2], [-3.75, 158.9, 1.4], [5.75, 10020, 2]], drums, ["PHANT"]], \
+                10:["Snare",       -9, 101, [[-3, 232.3, 3.1], [-2.5, 990.9, 3.5], [3, 7090, 2.8]], drums], \
+                11:["Tom1",        -5,  40, [[3, 133.7, 1.8], [-6.25, 701.5, 1.1], [4.5, 3200, 1.7]], drums], \
+                12:["Tom2",        -5,  25, [[4, 85.3, 2], [-6.75, 550.8, 0.7], [4.25, 3430, 2]], drums], \
                 13:["Overhead",    -5, 101, [], drums, ["PHANT"]], \
                 14:["E-Drum L",    -5,  25, [], edrums], \
                 15:["E-Drum R",    -5,  25, [], edrums, ["LINK"]]}
@@ -66,9 +66,6 @@ busses_dict = { 0:["Stefan Mon",   [-90,   0, -90,  0,   0,  0, -90, -90, -90, -
                 3:["Miguel Mon R", [-90, -90,  -6, -3,  -6,  0,  -6,  -6,  -6, -3, -6, -6, -6, -3, -3, -3], -10, ["LINK"]], \
                 4:["Volker Mon L", [-90, -90,  -6, -6,  -6, -6,  -6,  -6,  -6,  0,  0,  0,  0,  0,  0,  0], -10          ], \
                 5:["Volker Mon R", [  0, -90,  -6, -6,  -6, -6,  -6,  -6,  -6,  0,  0,  0,  0,  0,  0,  0], -10, ["LINK"]]}
-
-
-
 
 # TEST drum EQs {Gain, Freq, Qual}
 # snare -> low-cut: 92
@@ -89,9 +86,6 @@ busses_dict = { 0:["Stefan Mon",   [-90,   0, -90,  0,   0,  0, -90, -90, -90, -
 # {-6.75, 550.8, 0.7}
 # overhead
 # {LCut, 1.49k}
-
-
-
 
 
 use_recorded_data = True # TEST
@@ -173,10 +167,11 @@ def db_to_float(d, is_bus=False): # based on UNOFFICIAL_X32_OSC_REMOTE_PROTOCOL.
     f = (d + 30) / 40
   return round(f * 160) / 160 if is_bus else round(f * 1023) / 1023
 
-def freq_to_float(freq):
-  f = numpy.log(freq / 20) / numpy.log(20000 / 20)
-  return round(f * 200) / 200
+def freq_to_float(f):
+  return round(numpy.log(f / 20) / numpy.log(20000 / 20) * 200) / 200
 
+def q_to_float(q):
+  return 1 - round(numpy.log(q / 0.3) / numpy.log(10 / 0.3) * 71) / 71
 
 
 
@@ -217,20 +212,10 @@ def basic_setup_mixer(mixer):
       for i in range(len(channel_dict[ch][3])): # individual channel EQ settings
         g = ((channel_dict[ch][3][i][0] + 15) / 30)
         f = freq_to_float(channel_dict[ch][3][i][1])
-        q = channel_dict[ch][3][i][2]
+        q = q_to_float(channel_dict[ch][3][i][2])
         mixer.set_value(f"/ch/{ch + 1:#02}/eq/{i + 1}/f", [f], True)
         mixer.set_value(f"/ch/{ch + 1:#02}/eq/{i + 1}/g", [g], True)
-
-        print("snare")
-
-
-# TODO
-#/ch/01/eq/1/f     frequency  20 - 20000
-#/ch/01/eq/1/g     gain       -15.0 - +15.0
-#/ch/01/eq/1/q     Qual       10.0 - 0.3
-#/ch/01/eq/1/type  LCut, LShv, PEQ, VEQ, HShv, HCut
-
-
+        mixer.set_value(f"/ch/{ch + 1:#02}/eq/{i + 1}/q", [q], True)
       mixer.set_value(f"/ch/{ch + 1:#02}/dyn/keysrc", [0], True)    # default comp: key source SELF
       mixer.set_value(f"/ch/{ch + 1:#02}/dyn/mode", [0], True)      # default comp: compresser mode
       mixer.set_value(f"/ch/{ch + 1:#02}/dyn/auto", [0], True)      # default comp: auto compresser off
