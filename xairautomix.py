@@ -153,33 +153,11 @@ def set_gain(ch, x):
     return value * (60 - (-12)) - 12
 
 
-
-
-# TODO this could be copied in the x32 library
-def db_to_float(d, is_bus=False): # based on UNOFFICIAL_X32_OSC_REMOTE_PROTOCOL.pdf
-  if d < -60:
-    f = (d + 90) / 480
-  elif d < -30:
-    f = (d + 70) / 160
-  elif d < -10:
-    f = (d + 50) / 80
-  else:
-    f = (d + 30) / 40
-  return round(f * 160) / 160 if is_bus else round(f * 1023) / 1023
-
-def freq_to_float(f):
-  return round(numpy.log(f / 20) / numpy.log(20000 / 20) * 200) / 200
-
-def q_to_float(q):
-  return 1 - round(numpy.log(q / 0.3) / numpy.log(10 / 0.3) * 71) / 71
-
-
-
 def basic_setup_mixer(mixer):
   if tk.messagebox.askyesno(message='Are you sure to reset all mixer settings?'):
     for bus in range(6):
       mixer.set_value(f"/bus/{bus + 1}/config/name", [busses_dict[bus][0]], True)
-      mixer.set_value(f"/bus/{bus + 1}/mix/fader", [db_to_float(busses_dict[bus][2])], True)
+      mixer.set_value(f"/bus/{bus + 1}/mix/fader", [mixer.db_to_float(busses_dict[bus][2])], True)
       mixer.set_value(f"/bus/{bus + 1}/config/color", [3], True) # default: monitor busses are in yellow
       mixer.set_value(f"/bus/{bus + 1}/eq/on", [0], True)        # default: bus EQ off
       if len(busses_dict[bus]) > 3: # special bus settings
@@ -210,9 +188,9 @@ def basic_setup_mixer(mixer):
         mixer.set_value(f"/ch/{ch + 1:#02}/eq/{i + 1}/type", [2], True) # default: EQ, PEQ
         mixer.set_value(f"/ch/{ch + 1:#02}/eq/{i + 1}/g", [0.5], True)  # default: EQ, 0 dB gain
       for i in range(len(channel_dict[ch][3])): # individual channel EQ settings
-        g = ((channel_dict[ch][3][i][0] + 15) / 30)
-        f = freq_to_float(channel_dict[ch][3][i][1])
-        q = q_to_float(channel_dict[ch][3][i][2])
+        g = (channel_dict[ch][3][i][0] + 15) / 30
+        f = mixer.freq_to_float(channel_dict[ch][3][i][1])
+        q = mixer.q_to_float(channel_dict[ch][3][i][2])
         mixer.set_value(f"/ch/{ch + 1:#02}/eq/{i + 1}/f", [f], True)
         mixer.set_value(f"/ch/{ch + 1:#02}/eq/{i + 1}/g", [g], True)
         mixer.set_value(f"/ch/{ch + 1:#02}/eq/{i + 1}/q", [q], True)
@@ -237,7 +215,7 @@ def basic_setup_mixer(mixer):
       for bus in range(9):
         mixer.set_value(f"/ch/{ch + 1:#02}/mix/{bus + 1:#02}/tap", [3], True) # default: bus Pre Fader
         if bus < len(busses_dict):
-          mixer.set_value(f"/ch/{ch + 1:#02}/mix/{bus + 1:#02}/level", [db_to_float(busses_dict[bus][1][ch], True)], True)
+          mixer.set_value(f"/ch/{ch + 1:#02}/mix/{bus + 1:#02}/level", [mixer.db_to_float(busses_dict[bus][1][ch], True)], True)
         else:
           mixer.set_value(f"/ch/{ch + 1:#02}/mix/{bus + 1:#02}/level", [0], True)
       for bus in range(0, 6, 2): # adjust pan in send busses per channel (every second bus)
