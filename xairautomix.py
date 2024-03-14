@@ -188,12 +188,9 @@ def basic_setup_mixer(mixer):
         mixer.set_value(f"/ch/{ch + 1:#02}/eq/{i + 1}/type", [2], True) # default: EQ, PEQ
         mixer.set_value(f"/ch/{ch + 1:#02}/eq/{i + 1}/g", [0.5], True)  # default: EQ, 0 dB gain
       for i in range(len(channel_dict[ch][3])): # individual channel EQ settings
-        g = (channel_dict[ch][3][i][0] + 15) / 30
-        f = mixer.freq_to_float(channel_dict[ch][3][i][1])
-        q = mixer.q_to_float(channel_dict[ch][3][i][2])
-        mixer.set_value(f"/ch/{ch + 1:#02}/eq/{i + 1}/f", [f], True)
-        mixer.set_value(f"/ch/{ch + 1:#02}/eq/{i + 1}/g", [g], True)
-        mixer.set_value(f"/ch/{ch + 1:#02}/eq/{i + 1}/q", [q], True)
+        mixer.set_value(f"/ch/{ch + 1:#02}/eq/{i + 1}/g", [(channel_dict[ch][3][i][0] + 15) / 30], True)
+        mixer.set_value(f"/ch/{ch + 1:#02}/eq/{i + 1}/f", [mixer.freq_to_float(channel_dict[ch][3][i][1])], True)
+        mixer.set_value(f"/ch/{ch + 1:#02}/eq/{i + 1}/q", [mixer.q_to_float(channel_dict[ch][3][i][2])], True)
       mixer.set_value(f"/ch/{ch + 1:#02}/dyn/keysrc", [0], True)    # default comp: key source SELF
       mixer.set_value(f"/ch/{ch + 1:#02}/dyn/mode", [0], True)      # default comp: compresser mode
       mixer.set_value(f"/ch/{ch + 1:#02}/dyn/auto", [0], True)      # default comp: auto compresser off
