@@ -57,7 +57,7 @@ channel_dict = { 0:["Click",      1.5, 101, [], special, ["NOMIX"]], \
                 10:["Snare",       -9, 101, [[-3, 232.3, 3.1], [-2.5, 990.9, 3.5], [3, 7090, 2.8]], drums], \
                 11:["Tom1",        -5,  40, [[3, 133.7, 1.8], [-6.25, 701.5, 1.1], [4.5, 3200, 1.7]], drums], \
                 12:["Tom2",        -5,  25, [[4, 85.3, 2], [-6.75, 550.8, 0.7], [4.25, 3430, 2]], drums], \
-                13:["Overhead",    -5, 101, [], drums, ["PHANT"]], \
+                13:["Overhead",    -5, 101, [[0, 1490]], drums, ["PHANT"]], \
                 14:["E-Drum L",    -5,  25, [], edrums], \
                 15:["E-Drum R",    -5,  25, [], edrums, ["LINK"]]}
 busses_dict = { 0:["Stefan Mon",   [-90,   0, -90,  0,   0,  0, -90, -90, -90, -3, -6, -6, -6, -3, -3, -3], -10          ], \
@@ -66,27 +66,6 @@ busses_dict = { 0:["Stefan Mon",   [-90,   0, -90,  0,   0,  0, -90, -90, -90, -
                 3:["Miguel Mon R", [-90, -90,  -6, -3,  -6,  0,  -6,  -6,  -6, -3, -6, -6, -6, -3, -3, -3], -10, ["LINK"]], \
                 4:["Volker Mon L", [-90, -90,  -6, -6,  -6, -6,  -6,  -6,  -6,  0,  0,  0,  0,  0,  0,  0], -10          ], \
                 5:["Volker Mon R", [  0, -90,  -6, -6,  -6, -6,  -6,  -6,  -6,  0,  0,  0,  0,  0,  0,  0], -10, ["LINK"]]}
-
-# TEST drum EQs {Gain, Freq, Qual}
-# snare -> low-cut: 92
-# {3, 7.09k, 2.8}
-# {-3, 232.3, 3.1}
-# {-2.5, 990.9, 3.5}
-# kick
-# {3, 58.3, 2}
-# {-3.75, 158.9, 1.4}
-# {5.75, 10.02k, 2}
-# Tom1
-# {-6.25, 701.5, 1.1}
-# {4.5, 3.20k, 1.7}
-# {3, 133.7, 1.8}
-# Tom2
-# {4, 85.3, 2}
-# {4.25, 3.43k, 2}
-# {-6.75, 550.8, 0.7}
-# overhead
-# {LCut, 1.49k}
-
 
 use_recorded_data = True # TEST
 target_max_gain  = -15 # dB
@@ -188,9 +167,13 @@ def basic_setup_mixer(mixer):
         mixer.set_value(f"/ch/{ch + 1:#02}/eq/{i + 1}/type", [2], True) # default: EQ, PEQ
         mixer.set_value(f"/ch/{ch + 1:#02}/eq/{i + 1}/g", [0.5], True)  # default: EQ, 0 dB gain
       for i in range(len(channel_dict[ch][3])): # individual channel EQ settings
-        mixer.set_value(f"/ch/{ch + 1:#02}/eq/{i + 1}/g", [(channel_dict[ch][3][i][0] + 15) / 30], True)
-        mixer.set_value(f"/ch/{ch + 1:#02}/eq/{i + 1}/f", [mixer.freq_to_float(channel_dict[ch][3][i][1])], True)
-        mixer.set_value(f"/ch/{ch + 1:#02}/eq/{i + 1}/q", [mixer.q_to_float(channel_dict[ch][3][i][2])], True)
+        if len(channel_dict[ch][3][i]) > 2:
+          mixer.set_value(f"/ch/{ch + 1:#02}/eq/{i + 1}/g", [(channel_dict[ch][3][i][0] + 15) / 30], True)
+          mixer.set_value(f"/ch/{ch + 1:#02}/eq/{i + 1}/f", [mixer.freq_to_float(channel_dict[ch][3][i][1])], True)
+          mixer.set_value(f"/ch/{ch + 1:#02}/eq/{i + 1}/q", [mixer.q_to_float(channel_dict[ch][3][i][2])], True)
+        else: # special case: type and frequency
+          mixer.set_value(f"/ch/{ch + 1:#02}/eq/{i + 1}/type", [channel_dict[ch][3][i][0]], True)
+          mixer.set_value(f"/ch/{ch + 1:#02}/eq/{i + 1}/f", [mixer.freq_to_float(channel_dict[ch][3][i][1])], True)
       mixer.set_value(f"/ch/{ch + 1:#02}/dyn/keysrc", [0], True)    # default comp: key source SELF
       mixer.set_value(f"/ch/{ch + 1:#02}/dyn/mode", [0], True)      # default comp: compresser mode
       mixer.set_value(f"/ch/{ch + 1:#02}/dyn/auto", [0], True)      # default comp: auto compresser off
