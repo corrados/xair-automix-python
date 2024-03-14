@@ -44,22 +44,22 @@ bass    = [2]
 edrums  = [5]
 drums   = [4]
 special = [0]
-channel_dict = { 0:["Click",      1.5, 101, special, ["NOMIX"]], \
-                 1:["E-Git Mono",  -6, 101, guitar], \
-                 2:["Stefan",      23, 121, vocal], \
-                 3:["Miguel",      29, 121, vocal], \
-                 4:["Chris",       18, 121, vocal], \
-                 5:["Bass",         6,  25, bass], \
-                 6:["E-Git L",     13, 101, guitar], \
-                 7:["E-Git R",     13, 101, guitar, ["LINK"]], \
-                 8:["A-Git",      -12, 101, guitar], \
-                 9:["Kick",        -2,  25, drums, ["PHANT"]], \
-                10:["Snare",       -9, 101, drums], \
-                11:["Tom1",        -5,  40, drums], \
-                12:["Tom2",        -5,  25, drums], \
-                13:["Overhead",    -5, 101, drums, ["PHANT"]], \
-                14:["E-Drum L",    -5,  25, edrums], \
-                15:["E-Drum R",    -5,  25, edrums, ["LINK"]]}
+channel_dict = { 0:["Click",      1.5, 101, [], special, ["NOMIX"]], \
+                 1:["E-Git Mono",  -6, 101, [], guitar], \
+                 2:["Stefan",      23, 121, [], vocal], \
+                 3:["Miguel",      29, 121, [], vocal], \
+                 4:["Chris",       18, 121, [], vocal], \
+                 5:["Bass",         6,  25, [], bass], \
+                 6:["E-Git L",     13, 101, [], guitar], \
+                 7:["E-Git R",     13, 101, [], guitar, ["LINK"]], \
+                 8:["A-Git",      -12, 101, [], guitar], \
+                 9:["Kick",        -2,  25, [], drums, ["PHANT"]], \
+                10:["Snare",       -9, 101, [[3, 7090, 2.8], [-3, 232.3, 3.1], [-2.5, 990.9, 3.5]], drums], \
+                11:["Tom1",        -5,  40, [], drums], \
+                12:["Tom2",        -5,  25, [], drums], \
+                13:["Overhead",    -5, 101, [], drums, ["PHANT"]], \
+                14:["E-Drum L",    -5,  25, [], edrums], \
+                15:["E-Drum R",    -5,  25, [], edrums, ["LINK"]]}
 busses_dict = { 0:["Stefan Mon",   [-90,   0, -90,  0,   0,  0, -90, -90, -90, -3, -6, -6, -6, -3, -3, -3], -10          ], \
                 1:["Chris Mon",    [-90, -90,   0,  0, -90,  0, -90, -90,   0, -3, -6, -6, -6, -3, -3, -3], -10          ], \
                 2:["Miguel Mon L", [-90, -90,  -6, -3,  -6,  0,  -6,  -6,  -6, -3, -6, -6, -6, -3, -3, -3], -10          ], \
@@ -159,6 +159,9 @@ def set_gain(ch, x):
     return value * (60 - (-12)) - 12
 
 
+
+
+# TODO this could be copied in the x32 library
 def db_to_float(d, is_bus=False): # based on UNOFFICIAL_X32_OSC_REMOTE_PROTOCOL.pdf
   if d < -60:
     f = (d + 90) / 480
@@ -169,6 +172,12 @@ def db_to_float(d, is_bus=False): # based on UNOFFICIAL_X32_OSC_REMOTE_PROTOCOL.
   else:
     f = (d + 30) / 40
   return round(f * 160) / 160 if is_bus else round(f * 1023) / 1023
+
+def freq_to_float(freq):
+  f = numpy.log(freq / 20) / numpy.log(20000 / 20)
+  return round(f * 200) / 200
+
+
 
 
 def basic_setup_mixer(mixer):
@@ -184,7 +193,7 @@ def basic_setup_mixer(mixer):
       for rtn in range(4):
         mixer.set_value(f"/rtn/{rtn + 1}/mix/{bus + 1:#02}/level", [0], True) # default: FX level to lowest value
     for ch in channel_dict:
-      inst_group = channel_dict[ch][3]
+      inst_group = channel_dict[ch][4]
       set_gain(ch, channel_dict[ch][1])
       mixer.set_value(f"/ch/{ch + 1:#02}/config/color", [inst_group[0]], True)
       mixer.set_value(f"/ch/{ch + 1:#02}/config/name", [channel_dict[ch][0]], True)
@@ -202,6 +211,26 @@ def basic_setup_mixer(mixer):
       mixer.set_value(f"/ch/{ch + 1:#02}/eq/on", [1], True)         # default: EQ on
       mixer.set_value(f"/ch/{ch + 1:#02}/preamp/hpon", [1], True)   # default: high-pass on
       mixer.set_value(f"/ch/{ch + 1:#02}/preamp/hpf", [hp_dict[channel_dict[ch][2]]], False) # only values in hp_dict allowed
+      for i in range(4):
+        mixer.set_value(f"/ch/{ch + 1:#02}/eq/{i + 1}/type", [2], True) # default: EQ, PEQ
+        mixer.set_value(f"/ch/{ch + 1:#02}/eq/{i + 1}/g", [0.5], True)  # default: EQ, 0 dB gain
+      for i in range(len(channel_dict[ch][3])): # individual channel EQ settings
+        g = ((channel_dict[ch][3][i][0] + 15) / 30)
+        f = freq_to_float(channel_dict[ch][3][i][1])
+        q = channel_dict[ch][3][i][2]
+        mixer.set_value(f"/ch/{ch + 1:#02}/eq/{i + 1}/f", [f], True)
+        mixer.set_value(f"/ch/{ch + 1:#02}/eq/{i + 1}/g", [g], True)
+
+        print("snare")
+
+
+# TODO
+#/ch/01/eq/1/f     frequency  20 - 20000
+#/ch/01/eq/1/g     gain       -15.0 - +15.0
+#/ch/01/eq/1/q     Qual       10.0 - 0.3
+#/ch/01/eq/1/type  LCut, LShv, PEQ, VEQ, HShv, HCut
+
+
       mixer.set_value(f"/ch/{ch + 1:#02}/dyn/keysrc", [0], True)    # default comp: key source SELF
       mixer.set_value(f"/ch/{ch + 1:#02}/dyn/mode", [0], True)      # default comp: compresser mode
       mixer.set_value(f"/ch/{ch + 1:#02}/dyn/auto", [0], True)      # default comp: auto compresser off
@@ -220,9 +249,6 @@ def basic_setup_mixer(mixer):
         mixer.set_value(f"/ch/{ch + 1:#02}/dyn/filter/on", [1], True)       # vocal default: filter on
         mixer.set_value(f"/ch/{ch + 1:#02}/dyn/filter/type", [6], True)     # vocal default: filter type 3
         mixer.set_value(f"/ch/{ch + 1:#02}/dyn/filter/f", [0.495], True)    # vocal default: filter 611 Hz
-      for i in range(4):
-        mixer.set_value(f"/ch/{ch + 1:#02}/eq/{i + 1}/type", [2], True) # default: EQ, PEQ
-        mixer.set_value(f"/ch/{ch + 1:#02}/eq/{i + 1}/g", [0.5], True)  # default: EQ, 0 dB gain
       for bus in range(9):
         mixer.set_value(f"/ch/{ch + 1:#02}/mix/{bus + 1:#02}/tap", [3], True) # default: bus Pre Fader
         if bus < len(busses_dict):
@@ -233,12 +259,12 @@ def basic_setup_mixer(mixer):
         mixer.set_value(f"/ch/{ch + 1:#02}/mix/{bus + 1:#02}/pan", [0.5], True) # default: middle position
       if ch % 2 == 1:
         mixer.set_value(f"/config/chlink/{ch}-{ch + 1}", [0], True) # default: no stereo link
-      if len(channel_dict[ch]) > 4: # special channel settings
-        if "NOMIX" in channel_dict[ch][4]:
+      if len(channel_dict[ch]) > 5: # special channel settings
+        if "NOMIX" in channel_dict[ch][5]:
           mixer.set_value(f"/ch/{ch + 1:#02}/mix/lr", [0], True)
-        if "PHANT" in channel_dict[ch][4]:
+        if "PHANT" in channel_dict[ch][5]:
           mixer.set_value(f"/headamp/{ch + 1:#02}/phantom", [1], True)
-        if "LINK" in channel_dict[ch][4] and ch % 2 == 1:
+        if "LINK" in channel_dict[ch][5] and ch % 2 == 1:
           mixer.set_value(f"/config/chlink/{ch}-{ch + 1}", [1], True)
 
 
