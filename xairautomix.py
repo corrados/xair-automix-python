@@ -89,7 +89,6 @@ input_values         = [0] * len_meter2
 input_rta            = [0] * len_meter4
 all_raw_inputs_queue = deque()
 data_mutex           = threading.Lock()
-hp_dict              = {20:0, 25:0.08, 30:0.13, 40:0.23, 51:0.31, 70:0.42, 92:0.51, 101:0.54, 121:0.6, 153:0.68}
 
 
 def main():
@@ -164,7 +163,7 @@ def basic_setup_mixer(mixer):
       mixer.set_value(f"/ch/{ch + 1:#02}/dyn/on", [0])        # default: compressor off
       mixer.set_value(f"/ch/{ch + 1:#02}/eq/on", [1])         # default: EQ on
       mixer.set_value(f"/ch/{ch + 1:#02}/preamp/hpon", [1])   # default: high-pass on
-      mixer.set_value(f"/ch/{ch + 1:#02}/preamp/hpf", [hp_dict[channel_dict[ch][2]]], False) # only values in hp_dict allowed
+      mixer.set_value(f"/ch/{ch + 1:#02}/preamp/hpf", [mixer.freq_to_float(channel_dict[ch][2], 400)], False)
       for i in range(4):
         mixer.set_value(f"/ch/{ch + 1:#02}/eq/{i + 1}/type", [2]) # default: EQ, PEQ
         mixer.set_value(f"/ch/{ch + 1:#02}/eq/{i + 1}/g", [0.5])  # default: EQ, 0 dB gain
