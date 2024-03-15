@@ -37,37 +37,37 @@ import matplotlib.pyplot as plt # TODO somehow needed for "messagebox.askyesno"?
 import tkinter as tk
 from tkinter import ttk
 
-# mixer channel setup, channel_dict: [name, gain, HP, group, special]
+# mixer channel setup, channel_dict: [name, fader, gain, HP, group, special]
 special = [0]
 vocal   = [1, ["VOCALDYN"]]
 bass    = [2]
 guitar  = [3]
 drums   = [4]
 edrums  = [5]
-channel_dict = {0:["Click",      1.5, 101, [], special, ["NOMIX"]], \
-                1:["",            -6, 101, [], special], \
-                2:["Stefan",      23, 121, [], vocal], \
-                3:["Miguel",      29, 121, [[4, 124.7, 1], [-3.5, 2340, 2]], vocal], \
-                4:["Chris",       18, 121, [[1.25, 1260, 2], [1.75, 3680, 2]], vocal], \
-                5:["Bass",         6,  25, [], bass], \
-                6:["E-Git L",     13, 101, [], guitar], \
-                7:["E-Git R",     13, 101, [], guitar, ["LINK"]], \
-                8:["A-Git",      -12, 101, [], guitar], \
-                9:["Kick",        -2,  25, [[3, 58.3, 2], [-3.75, 158.9, 1.4], [5.75, 3090, 2]], drums, ["PHANT"]], \
-               10:["Snare",       -9, 101, [[-3, 232.3, 3.1], [-2.5, 990.9, 3.5], [3, 7090, 2.8]], drums], \
-               11:["Tom1",        -5,  40, [[3, 133.7, 1.8], [-6.25, 701.5, 1.1], [4.5, 3200, 1.7]], drums], \
-               12:["Tom2",        -5,  25, [[4, 85.3, 2], [-6.75, 550.8, 0.7], [4.25, 3430, 2]], drums], \
-               13:["Overhead",    -5, 101, [[0, 1490]], drums, ["PHANT"]], \
-               14:["E-Drum L",    -5,  25, [], edrums], \
-               15:["E-Drum R",    -5,  25, [], edrums, ["LINK"]]}
+channel_dict = {0:["Click",    -90, 1.5, 101, [], special, ["NOMIX"]], \
+                1:["",         -90,  -6, 101, [], special], \
+                2:["Stefan",     0,  23, 121, [], vocal], \
+                3:["Miguel",    -2,  29, 121, [[4, 124.7, 1], [-3.5, 2340, 2]], vocal], \
+                4:["Chris",     -2,  18, 121, [[1.25, 1260, 2], [1.75, 3680, 2]], vocal], \
+                5:["Bass",      -2,   6,  25, [], bass], \
+                6:["E-Git L",   -2,  13, 101, [], guitar], \
+                7:["E-Git R",   -2,  13, 101, [], guitar, ["LINK"]], \
+                8:["A-Git",     -5, -12, 101, [], guitar], \
+                9:["Kick",      -2,  -2,  25, [[3, 58.3, 2], [-3.75, 158.9, 1.4], [5.75, 3090, 2]], drums, ["PHANT"]], \
+               10:["Snare",     -2,  -9, 101, [[-3, 232.3, 3.1], [-2.5, 990.9, 3.5], [3, 7090, 2.8]], drums], \
+               11:["Tom1",      -2,  -5,  40, [[3, 133.7, 1.8], [-6.25, 701.5, 1.1], [4.5, 3200, 1.7]], drums], \
+               12:["Tom2",      -2,  -5,  25, [[4, 85.3, 2], [-6.75, 550.8, 0.7], [4.25, 3430, 2]], drums], \
+               13:["Overhead",  -5,  -5, 101, [[0, 1490]], drums, ["PHANT"]], \
+               14:["E-Drum L",  -2,  -5,  25, [], edrums], \
+               15:["E-Drum R",  -2,  -5,  25, [], edrums, ["LINK"]]}
 busses_dict = {0:["Stefan Mon",   [-90, -90, -90,  0,   0,  0,   0,   0, -90, -3, -6, -6, -6, -3, -3, -3], -10          ], \
                1:["Chris Mon",    [-90, -90,   0,  0, -90,  0, -90, -90,   0, -3, -6, -6, -6, -3, -3, -3], -10          ], \
                2:["Miguel Mon L", [-90, -90,  -6, -3,  -6,  0,  -6,  -6,  -6, -3, -6, -6, -6, -3, -3, -3], -10          ], \
                3:["Miguel Mon R", [-90, -90,  -6, -3,  -6,  0,  -6,  -6,  -6, -3, -6, -6, -6, -3, -3, -3], -10, ["LINK"]], \
                4:["Volker Mon L", [-90, -90,  -6, -6,  -6, -6,  -6,  -6,  -6,  0,  0,  0,  0,  0,  0,  0], -10          ], \
                5:["Volker Mon R", [  0, -90,  -6, -6,  -6, -6,  -6,  -6,  -6,  0,  0,  0,  0,  0,  0,  0], -10, ["LINK"]]}
-busses_pan_dict = {2:[0, 0, -30, 60, -94, 44, -100,  32, -40, 0, 0, 0, 0, -46, -100, 100], \
-                   4:[0, 0,  20, 42, -50,  0, -100, 100,  40, 0, 0, 0, 0,   0, -100, 100]}
+busses_pan_dict = {2:[0, 0, -30, 60, -94, 44, -100,  32, -40, 0, 0,   0,  0, -46, -100, 100], \
+                   4:[0, 0,  20, 42, -50,  0, -100, 100,  40, 0, 0, -18, 18,   0, -100, 100]}
 
 use_recorded_data = True # TEST
 target_max_gain  = -15 # dB
@@ -135,6 +135,7 @@ def set_gain(ch, x):
 
 def basic_setup_mixer(mixer):
   if tk.messagebox.askyesno(message='Are you sure to reset all mixer settings?'):
+    mixer.set_value("/lr/mix/fader", [0]) # default: main LR fader to minimum
     for bus in range(6):
       mixer.set_value(f"/bus/{bus + 1}/config/name", [busses_dict[bus][0]])
       mixer.set_value(f"/bus/{bus + 1}/mix/fader", [mixer.db_to_float(busses_dict[bus][2])])
@@ -146,35 +147,35 @@ def basic_setup_mixer(mixer):
       for rtn in range(4):
         mixer.set_value(f"/rtn/{rtn + 1}/mix/{bus + 1:#02}/level", [0]) # default: FX level to lowest value
     for ch in channel_dict:
-      inst_group = channel_dict[ch][4]
-      set_gain(ch, channel_dict[ch][1])
+      inst_group = channel_dict[ch][5]
+      set_gain(ch, channel_dict[ch][2])
       mixer.set_value(f"/ch/{ch + 1:#02}/config/color", [inst_group[0]])
       mixer.set_value(f"/ch/{ch + 1:#02}/config/name", [channel_dict[ch][0]])
+      mixer.set_value(f"/ch/{ch + 1:#02}/mix/fader", [mixer.db_to_float(channel_dict[ch][1])])
       mixer.set_value(f"/ch/{ch + 1:#02}/config/insrc", [ch]) # default: linear in/out mapping
       mixer.set_value(f"/ch/{ch + 1:#02}/mix/lr", [1])        # default: send to LR master
       mixer.set_value(f"/ch/{ch + 1:#02}/mix/on", [1])        # default: unmute channel
       mixer.set_value(f"/ch/{ch + 1:#02}/grp/mute", [0])      # default: no mute group
       mixer.set_value(f"/-stat/solosw/{ch + 1:#02}", [0])     # default: no Solo
       mixer.set_value(f"/ch/{ch + 1:#02}/grp/dca", [0])       # default: no DCA group
-      mixer.set_value(f"/ch/{ch + 1:#02}/mix/fader", [0])     # default: fader to lowest value
       mixer.set_value(f"/headamp/{ch + 1:#02}/phantom", [0])  # default: no phantom power
       mixer.set_value(f"/ch/{ch + 1:#02}/mix/pan", [0.5])     # default: middle position
       mixer.set_value(f"/ch/{ch + 1:#02}/gate/on", [0])       # default: gate off
       mixer.set_value(f"/ch/{ch + 1:#02}/dyn/on", [0])        # default: compressor off
       mixer.set_value(f"/ch/{ch + 1:#02}/eq/on", [1])         # default: EQ on
       mixer.set_value(f"/ch/{ch + 1:#02}/preamp/hpon", [1])   # default: high-pass on
-      mixer.set_value(f"/ch/{ch + 1:#02}/preamp/hpf", [mixer.freq_to_float(channel_dict[ch][2], 400)], False)
+      mixer.set_value(f"/ch/{ch + 1:#02}/preamp/hpf", [mixer.freq_to_float(channel_dict[ch][3], 400)], False)
       for i in range(4):
         mixer.set_value(f"/ch/{ch + 1:#02}/eq/{i + 1}/type", [2]) # default: EQ, PEQ
         mixer.set_value(f"/ch/{ch + 1:#02}/eq/{i + 1}/g", [0.5])  # default: EQ, 0 dB gain
-      for i in range(len(channel_dict[ch][3])): # individual channel EQ settings
-        if len(channel_dict[ch][3][i]) > 2:
-          mixer.set_value(f"/ch/{ch + 1:#02}/eq/{i + 1}/g", [(channel_dict[ch][3][i][0] + 15) / 30])
-          mixer.set_value(f"/ch/{ch + 1:#02}/eq/{i + 1}/f", [mixer.freq_to_float(channel_dict[ch][3][i][1])])
-          mixer.set_value(f"/ch/{ch + 1:#02}/eq/{i + 1}/q", [mixer.q_to_float(channel_dict[ch][3][i][2])])
+      for i in range(len(channel_dict[ch][4])): # individual channel EQ settings
+        if len(channel_dict[ch][4][i]) > 2:
+          mixer.set_value(f"/ch/{ch + 1:#02}/eq/{i + 1}/g", [(channel_dict[ch][4][i][0] + 15) / 30])
+          mixer.set_value(f"/ch/{ch + 1:#02}/eq/{i + 1}/f", [mixer.freq_to_float(channel_dict[ch][4][i][1])])
+          mixer.set_value(f"/ch/{ch + 1:#02}/eq/{i + 1}/q", [mixer.q_to_float(channel_dict[ch][4][i][2])])
         else: # special case: type and frequency
-          mixer.set_value(f"/ch/{ch + 1:#02}/eq/{i + 1}/type", [channel_dict[ch][3][i][0]])
-          mixer.set_value(f"/ch/{ch + 1:#02}/eq/{i + 1}/f", [mixer.freq_to_float(channel_dict[ch][3][i][1])])
+          mixer.set_value(f"/ch/{ch + 1:#02}/eq/{i + 1}/type", [channel_dict[ch][4][i][0]])
+          mixer.set_value(f"/ch/{ch + 1:#02}/eq/{i + 1}/f", [mixer.freq_to_float(channel_dict[ch][4][i][1])])
       mixer.set_value(f"/ch/{ch + 1:#02}/dyn/keysrc", [0])            # default comp: key source SELF
       mixer.set_value(f"/ch/{ch + 1:#02}/dyn/mode", [0])              # default comp: compresser mode
       mixer.set_value(f"/ch/{ch + 1:#02}/dyn/auto", [0])              # default comp: auto compresser off
@@ -205,12 +206,12 @@ def basic_setup_mixer(mixer):
           mixer.set_value(f"/ch/{ch + 1:#02}/mix/{bus + 1:#02}/pan", [0.5]) # default: middle position
       if ch % 2 == 1:
         mixer.set_value(f"/config/chlink/{ch}-{ch + 1}", [0]) # default: no stereo link
-      if len(channel_dict[ch]) > 5: # special channel settings
-        if "NOMIX" in channel_dict[ch][5]:
+      if len(channel_dict[ch]) > 6: # special channel settings
+        if "NOMIX" in channel_dict[ch][6]:
           mixer.set_value(f"/ch/{ch + 1:#02}/mix/lr", [0])
-        if "PHANT" in channel_dict[ch][5]:
+        if "PHANT" in channel_dict[ch][6]:
           mixer.set_value(f"/headamp/{ch + 1:#02}/phantom", [1])
-        if "LINK" in channel_dict[ch][5] and ch % 2 == 1:
+        if "LINK" in channel_dict[ch][6] and ch % 2 == 1:
           mixer.set_value(f"/config/chlink/{ch}-{ch + 1}", [1])
 
 
