@@ -44,28 +44,30 @@ bass    = [2]
 edrums  = [5]
 drums   = [4]
 special = [0]
-channel_dict = { 0:["Click",      1.5, 101, [], special, ["NOMIX"]], \
-                 1:["E-Git Mono",  -6, 101, [], guitar], \
-                 2:["Stefan",      23, 121, [], vocal], \
-                 3:["Miguel",      29, 121, [[4, 124.7, 1], [-3.5, 2340, 2]], vocal], \
-                 4:["Chris",       18, 121, [[1.25, 1260, 2], [1.75, 3680, 2]], vocal], \
-                 5:["Bass",         6,  25, [], bass], \
-                 6:["E-Git L",     13, 101, [], guitar], \
-                 7:["E-Git R",     13, 101, [], guitar, ["LINK"]], \
-                 8:["A-Git",      -12, 101, [], guitar], \
-                 9:["Kick",        -2,  25, [[3, 58.3, 2], [-3.75, 158.9, 1.4], [5.75, 3090, 2]], drums, ["PHANT"]], \
-                10:["Snare",       -9, 101, [[-3, 232.3, 3.1], [-2.5, 990.9, 3.5], [3, 7090, 2.8]], drums], \
-                11:["Tom1",        -5,  40, [[3, 133.7, 1.8], [-6.25, 701.5, 1.1], [4.5, 3200, 1.7]], drums], \
-                12:["Tom2",        -5,  25, [[4, 85.3, 2], [-6.75, 550.8, 0.7], [4.25, 3430, 2]], drums], \
-                13:["Overhead",    -5, 101, [[0, 1490]], drums, ["PHANT"]], \
-                14:["E-Drum L",    -5,  25, [], edrums], \
-                15:["E-Drum R",    -5,  25, [], edrums, ["LINK"]]}
-busses_dict = { 0:["Stefan Mon",   [-90,   0, -90,  0,   0,  0, -90, -90, -90, -3, -6, -6, -6, -3, -3, -3], -10          ], \
-                1:["Chris Mon",    [-90, -90,   0,  0, -90,  0, -90, -90,   0, -3, -6, -6, -6, -3, -3, -3], -10          ], \
-                2:["Miguel Mon L", [-90, -90,  -6, -3,  -6,  0,  -6,  -6,  -6, -3, -6, -6, -6, -3, -3, -3], -10          ], \
-                3:["Miguel Mon R", [-90, -90,  -6, -3,  -6,  0,  -6,  -6,  -6, -3, -6, -6, -6, -3, -3, -3], -10, ["LINK"]], \
-                4:["Volker Mon L", [-90, -90,  -6, -6,  -6, -6,  -6,  -6,  -6,  0,  0,  0,  0,  0,  0,  0], -10          ], \
-                5:["Volker Mon R", [  0, -90,  -6, -6,  -6, -6,  -6,  -6,  -6,  0,  0,  0,  0,  0,  0,  0], -10, ["LINK"]]}
+channel_dict = {0:["Click",      1.5, 101, [], special, ["NOMIX"]], \
+                1:["E-Git Mono",  -6, 101, [], guitar], \
+                2:["Stefan",      23, 121, [], vocal], \
+                3:["Miguel",      29, 121, [[4, 124.7, 1], [-3.5, 2340, 2]], vocal], \
+                4:["Chris",       18, 121, [[1.25, 1260, 2], [1.75, 3680, 2]], vocal], \
+                5:["Bass",         6,  25, [], bass], \
+                6:["E-Git L",     13, 101, [], guitar], \
+                7:["E-Git R",     13, 101, [], guitar, ["LINK"]], \
+                8:["A-Git",      -12, 101, [], guitar], \
+                9:["Kick",        -2,  25, [[3, 58.3, 2], [-3.75, 158.9, 1.4], [5.75, 3090, 2]], drums, ["PHANT"]], \
+               10:["Snare",       -9, 101, [[-3, 232.3, 3.1], [-2.5, 990.9, 3.5], [3, 7090, 2.8]], drums], \
+               11:["Tom1",        -5,  40, [[3, 133.7, 1.8], [-6.25, 701.5, 1.1], [4.5, 3200, 1.7]], drums], \
+               12:["Tom2",        -5,  25, [[4, 85.3, 2], [-6.75, 550.8, 0.7], [4.25, 3430, 2]], drums], \
+               13:["Overhead",    -5, 101, [[0, 1490]], drums, ["PHANT"]], \
+               14:["E-Drum L",    -5,  25, [], edrums], \
+               15:["E-Drum R",    -5,  25, [], edrums, ["LINK"]]}
+busses_dict = {0:["Stefan Mon",   [-90,   0, -90,  0,   0,  0, -90, -90, -90, -3, -6, -6, -6, -3, -3, -3], -10          ], \
+               1:["Chris Mon",    [-90, -90,   0,  0, -90,  0, -90, -90,   0, -3, -6, -6, -6, -3, -3, -3], -10          ], \
+               2:["Miguel Mon L", [-90, -90,  -6, -3,  -6,  0,  -6,  -6,  -6, -3, -6, -6, -6, -3, -3, -3], -10          ], \
+               3:["Miguel Mon R", [-90, -90,  -6, -3,  -6,  0,  -6,  -6,  -6, -3, -6, -6, -6, -3, -3, -3], -10, ["LINK"]], \
+               4:["Volker Mon L", [-90, -90,  -6, -6,  -6, -6,  -6,  -6,  -6,  0,  0,  0,  0,  0,  0,  0], -10          ], \
+               5:["Volker Mon R", [  0, -90,  -6, -6,  -6, -6,  -6,  -6,  -6,  0,  0,  0,  0,  0,  0,  0], -10, ["LINK"]]}
+busses_pan_dict = {2:[0, 0, -30, 60, -94, 44, -100,  32, -40, 0, 0, 0, 0, -46, -100, 100], \
+                   4:[0, 0,  20, 42, -50,  0, -100, 100,  40, 0, 0, 0, 0,   0, -100, 100]}
 
 use_recorded_data = True # TEST
 target_max_gain  = -15 # dB
@@ -194,12 +196,14 @@ def basic_setup_mixer(mixer):
         mixer.set_value(f"/ch/{ch + 1:#02}/dyn/filter/f", [0.495])    # vocal default: filter 611 Hz
       for bus in range(9):
         mixer.set_value(f"/ch/{ch + 1:#02}/mix/{bus + 1:#02}/tap", [3]) # default: bus Pre Fader
-        if bus < len(busses_dict):
+        mixer.set_value(f"/ch/{ch + 1:#02}/mix/{bus + 1:#02}/level", [0])
+        if bus in busses_dict:
           mixer.set_value(f"/ch/{ch + 1:#02}/mix/{bus + 1:#02}/level", [mixer.db_to_float(busses_dict[bus][1][ch], True)])
-        else:
-          mixer.set_value(f"/ch/{ch + 1:#02}/mix/{bus + 1:#02}/level", [0])
       for bus in range(0, 6, 2): # adjust pan in send busses per channel (every second bus)
-        mixer.set_value(f"/ch/{ch + 1:#02}/mix/{bus + 1:#02}/pan", [0.5]) # default: middle position
+        if bus in busses_pan_dict:
+          mixer.set_value(f"/ch/{ch + 1:#02}/mix/{bus + 1:#02}/pan", [(int(busses_pan_dict[bus][ch] / 2) + 50) / 100])
+        else:
+          mixer.set_value(f"/ch/{ch + 1:#02}/mix/{bus + 1:#02}/pan", [0.5]) # default: middle position
       if ch % 2 == 1:
         mixer.set_value(f"/config/chlink/{ch}-{ch + 1}", [0]) # default: no stereo link
       if len(channel_dict[ch]) > 5: # special channel settings
