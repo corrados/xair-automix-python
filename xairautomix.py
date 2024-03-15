@@ -38,14 +38,14 @@ import tkinter as tk
 from tkinter import ttk
 
 # mixer channel setup, channel_dict: [name, gain, HP, group, special]
-vocal   = [1, ["VOCALDYN"]]
-guitar  = [3]
-bass    = [2]
-edrums  = [5]
-drums   = [4]
 special = [0]
+vocal   = [1, ["VOCALDYN"]]
+bass    = [2]
+guitar  = [3]
+drums   = [4]
+edrums  = [5]
 channel_dict = {0:["Click",      1.5, 101, [], special, ["NOMIX"]], \
-                1:["E-Git Mono",  -6, 101, [], guitar], \
+                1:["",            -6, 101, [], special], \
                 2:["Stefan",      23, 121, [], vocal], \
                 3:["Miguel",      29, 121, [[4, 124.7, 1], [-3.5, 2340, 2]], vocal], \
                 4:["Chris",       18, 121, [[1.25, 1260, 2], [1.75, 3680, 2]], vocal], \
@@ -60,7 +60,7 @@ channel_dict = {0:["Click",      1.5, 101, [], special, ["NOMIX"]], \
                13:["Overhead",    -5, 101, [[0, 1490]], drums, ["PHANT"]], \
                14:["E-Drum L",    -5,  25, [], edrums], \
                15:["E-Drum R",    -5,  25, [], edrums, ["LINK"]]}
-busses_dict = {0:["Stefan Mon",   [-90,   0, -90,  0,   0,  0, -90, -90, -90, -3, -6, -6, -6, -3, -3, -3], -10          ], \
+busses_dict = {0:["Stefan Mon",   [-90, -90, -90,  0,   0,  0,   0,   0, -90, -3, -6, -6, -6, -3, -3, -3], -10          ], \
                1:["Chris Mon",    [-90, -90,   0,  0, -90,  0, -90, -90,   0, -3, -6, -6, -6, -3, -3, -3], -10          ], \
                2:["Miguel Mon L", [-90, -90,  -6, -3,  -6,  0,  -6,  -6,  -6, -3, -6, -6, -6, -3, -3, -3], -10          ], \
                3:["Miguel Mon R", [-90, -90,  -6, -3,  -6,  0,  -6,  -6,  -6, -3, -6, -6, -6, -3, -3, -3], -10, ["LINK"]], \
