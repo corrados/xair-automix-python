@@ -73,6 +73,7 @@ use_recorded_data = False # TEST
 target_max_gain  = -15 # dB
 input_threshold  = -50 # dB
 max_allowed_gain =  40 # dB
+dyn_thresh       = target_max_gain - 6 - 11 # target -6 dB reduction minus additional "magic number"
 
 channel              = -1   # initialize with invalid channel
 is_input_hist        = True # histogram of inputs per default
@@ -186,7 +187,7 @@ def basic_setup_mixer(mixer):
       mixer.set_value(f"/ch/{ch + 1:#02}/dyn/det", [0])               # default comp: det PEAK
       mixer.set_value(f"/ch/{ch + 1:#02}/dyn/env", [1])               # default comp: env LOG
       mixer.set_value(f"/ch/{ch + 1:#02}/dyn/mix", [1.0])             # default comp: mix 100 %
-      mixer.set_value(f"/ch/{ch + 1:#02}/dyn/thr", [1.0])             # default comp: threshold 0 dB
+      mixer.set_value(f"/ch/{ch + 1:#02}/dyn/thr", [(dyn_thresh + 60) / 60]) # default comp: pre-defined threshold
       if len(inst_group) > 1 and "VOCALDYN" in inst_group[1]:         # vocal dynamic presets:
         mixer.set_value(f"/ch/{ch + 1:#02}/dyn/on", [1])              # vocal default: compresser on
         mixer.set_value(f"/ch/{ch + 1:#02}/dyn/ratio", [5])           # vocal default: ratio 3
