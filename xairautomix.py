@@ -213,6 +213,24 @@ def basic_setup_mixer(mixer):
           mixer.set_value(f"/ch/{ch + 1:#02}/mix/{bus + 1:#02}/pan", [0.5]) # default: middle position
       if ch % 2 == 1:
         mixer.set_value(f"/config/chlink/{ch}-{ch + 1}", [0]) # default: no stereo link
+      mixer.set_value("/fx/1/type", [0])                # default: FX1 Hall Reverb (for vocals)
+      mixer.set_value("/fx/1/par/01", [0.1])            # default: FX1 PRE DEL 20 ms
+      mixer.set_value("/fx/1/par/02", [0.64])           # default: FX1 DECAY 1.57 s
+      mixer.set_value("/fx/1/par/03", [0.59183675])     # default: FX1 SIZE 60
+      mixer.set_value("/fx/1/par/04", [0.58333333])     # default: FX1 DAMP 5k74 Hz
+      mixer.set_value("/fx/1/par/05", [0.82758623])     # default: FX1 DIFF 25
+      mixer.set_value("/fx/1/par/06", [0.5])            # default: FX1 LEVEL 0 dB
+      mixer.set_value("/fx/2/type", [3])                # default: FX2 Room Reverb (for drums)
+      mixer.set_value("/fx/2/par/01", [0.03])           # default: FX2 PRE DEL 6 ms
+      mixer.set_value("/fx/2/par/02", [0.08])           # default: FX2 DECAY 0.43 s
+      mixer.set_value("/fx/2/par/03", [0.19444444])     # default: FX2 SIZE 18 m
+      mixer.set_value("/fx/2/par/04", [0.45833334])     # default: FX2 DAMP 3k94 Hz
+      mixer.set_value("/fx/2/par/05", [0.68])           # default: FX2 DIFF 68 %
+      mixer.set_value("/fx/2/par/06", [0.5])            # default: FX2 LEVEL 0 dB
+      mixer.set_value("/rtn/1/mix/fader", [0.74975562]) # default: 0 dB return level for FX1 (vocal)
+      mixer.set_value("/rtn/2/mix/fader", [0.74975562]) # default: 0 dB return level for FX2 (drums)
+      mixer.set_value("/rtn/3/mix/fader", [0])          # default: -90 dB return level for FX3 (not used)
+      mixer.set_value("/rtn/4/mix/fader", [0])          # default: -90 dB return level for FX4 (not used)
       if len(channel_dict[ch]) > 6: # special channel settings
         if "NOMIX" in channel_dict[ch][6]:
           mixer.set_value(f"/ch/{ch + 1:#02}/mix/lr", [0])
