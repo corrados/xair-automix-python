@@ -69,11 +69,11 @@ busses_dict = {0:["Stefan Mon",   [-90, -90, -90,  0,   0,  0,   0,   0, -90, -3
 busses_pan_dict = {2:[0, 0, -30, 60, -94, 44, -100,  32, -40, 0, 0,   0,  0, -46, -100, 100], \
                    4:[0, 0,  20, 42, -50,  0, -100, 100,  40, 0, 0, -18, 18,   0, -100, 100]}
 
-use_recorded_data = False # TEST
-target_max_gain  = -15 # dB
-input_threshold  = -50 # dB
-max_allowed_gain =  40 # dB
-dyn_thresh       = target_max_gain - 6 - 10 # target -6 dB reduction minus additional "magic number"
+use_recorded_data     = False # TEST
+target_max_gain       = -15 # dB
+set_gain_input_thresh = -40 # dB
+no_input_threshold    = -80 # dB
+dyn_thresh            = target_max_gain - 6 - 10 # target -6 dB reduction minus additional "magic number"
 
 channel              = -1   # initialize with invalid channel
 is_input_hist        = True # histogram of inputs per default
@@ -112,9 +112,12 @@ def apply_optimal_gains():
   with data_mutex:
     for ch in range(len(channel_dict)):
       (max_data_index, max_data_value) = analyze_histogram(input_histograms[ch])
-      new_gain = get_gain(ch) - (max_data_value - target_max_gain)
-      if new_gain < max_allowed_gain and max_data_value > input_threshold:
-        set_gain(ch, new_gain)
+      if max_data_value > no_input_threshold:
+        mixer.set_value(f"/ch/{ch + 1:#02}/mix/on", [1]) # unmute channel
+        if max_data_value > set_gain_input_thresh:
+          set_gain(ch, get_gain(ch) - (max_data_value - target_max_gain))
+      else:
+        mixer.set_value(f"/ch/{ch + 1:#02}/mix/on", [0]) # mute channel with no input level
   reset_histograms() # history needs to be reset on updated gain settings
 
 
@@ -132,7 +135,7 @@ def set_gain(ch, x):
     mixer.set_value(f"/headamp/{ch + 9:#02}/gain", [value])
     return value * (20 - (-12)) - 12
   else:
-    value = max(0, min(1, (x + 12) / (60 - (-12))))
+    value = max(0, min(0.9861111, (x + 12) / (60 - (-12))))
     mixer.set_value(f"/headamp/{ch + 1:#02}/gain", [value])
     return value * (60 - (-12)) - 12
 
@@ -155,10 +158,10 @@ def basic_setup_mixer(mixer):
       set_gain(ch, channel_dict[ch][2])
       mixer.set_value(f"/ch/{ch + 1:#02}/config/color", [inst_group[0]])
       mixer.set_value(f"/ch/{ch + 1:#02}/config/name", [channel_dict[ch][0]])
-      mixer.set_value(f"/ch/{ch + 1:#02}/mix/fader", [mixer.db_to_float(channel_dict[ch][1])])
+      mixer.set_value(f"/ch/{ch + 1:#02}/mix/on", [1])        # default: unmute channel
+      mixer.set_value(f"/ch/{ch + 1:#02}/mix/fader", [mixer.db_to_float(channel_dict[ch][1])]) # note: unmute necessary
       mixer.set_value(f"/ch/{ch + 1:#02}/config/insrc", [ch]) # default: linear in/out mapping
       mixer.set_value(f"/ch/{ch + 1:#02}/mix/lr", [1])        # default: send to LR master
-      mixer.set_value(f"/ch/{ch + 1:#02}/mix/on", [1])        # default: unmute channel
       mixer.set_value(f"/ch/{ch + 1:#02}/grp/mute", [0])      # default: no mute group
       mixer.set_value(f"/-stat/solosw/{ch + 1:#02}", [0])     # default: no Solo
       mixer.set_value(f"/ch/{ch + 1:#02}/grp/dca", [0])       # default: no DCA group
