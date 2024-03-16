@@ -263,31 +263,35 @@ def receive_meter_messages():
 
             all_raw_inputs_queue.append(raw_values[:len_meter2])
             input_values = values[:len_meter2]
-            calc_input_histograms(input_values)
+            calc_histograms(input_values, input_histograms)
           elif message.address == "/meters/4":
             input_rta = values
           elif message.address == "/meters/6":
             gatedyn_values = values[16:16 + len_meter6] # note: cut out only dyn values -> offset of 16
-            calc_gatedyn_histograms(gatedyn_values)
+            gatedyn_values = [-x - 128 for x in gatedyn_values] # invert values for max in histogram
+            calc_histograms(gatedyn_values, gatedyn_histograms)
     else:
       # no meters message, put it back on queue and give other thread some time to process message
       mixer.put_msg_on_queue(message)
       time.sleep(0.01)
 
 
-def calc_input_histograms(values):
-  for i in range(len_meter2):
-    input_histograms[i][int((values[i] + 128) / 129 * hist_len)] += 1
-
-def calc_gatedyn_histograms(values):
-  for i in range(len_meter6):
-    gatedyn_histograms[i][int((-values[i] - 128) / 129 * hist_len)] += 1
-
+def calc_histograms(values, histograms):
+  for i in range(len(values)):
+    #values[i] = -128
+    #print(int((values[i] + 128) / 129 * hist_len))
+    histograms[i][int((values[i] + 128) / 129 * hist_len)] += 1
 
 def analyze_histogram(histogram):
   max_data_index = len(histogram) - 1 # start value
   while histogram[max_data_index] == 0 and max_data_index > 0: max_data_index -= 1
   return (max_data_index, int(max_data_index / hist_len * 129 - 128))
+
+def reset_histograms():
+  global input_histograms, gatedyn_histograms
+  with data_mutex:
+    input_histograms   = [[0] * hist_len for i in range(len_meter2)]
+    gatedyn_histograms = [[0] * hist_len for i in range(len_meter6)]
 
 
 
@@ -308,19 +312,12 @@ def detect_feedback():
 
 
 
-def reset_histograms():
-  global input_histograms, gatedyn_histograms
-  with data_mutex:
-    input_histograms   = [[0] * hist_len for i in range(len_meter2)]
-    gatedyn_histograms = [[0] * hist_len for i in range(len_meter6)]
-
-
 def gui_thread():
   global exit_threads, channel, is_input_hist
-  window                                           = tk.Tk(className="XR Auto Mix")
-  window_color                                     = window.cget("bg")
+  window = tk.Tk(className="XR Auto Mix")
+  window_color = window.cget("bg")
   (input_bars, input_labels, dyn_labels, rta_bars) = ([], [], [], [])
-  (buttons_f, inputs_f, selection_f)               = (tk.Frame(window), tk.Frame(window), tk.Frame(window))
+  (buttons_f, inputs_f, selection_f) = (tk.Frame(window), tk.Frame(window), tk.Frame(window))
   buttons_f.pack()
   inputs_f.pack()
   selection_f.pack()
@@ -380,7 +377,7 @@ def gui_thread():
             input_labels[i].config(text=max_data_value, bg=window_color)
       for i in range(len_meter6):
         (max_data_index, max_data_value) = analyze_histogram(gatedyn_histograms[i])
-        max_data_value = 126 + max_data_value # TODO put this in analyze_histogram
+        max_data_value = 128 + max_data_value # values were inverted
         if max_data_value > 9:
           dyn_labels[i].config(text=max_data_value, bg="red")
         else:
