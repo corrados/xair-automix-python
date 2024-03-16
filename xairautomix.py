@@ -73,7 +73,7 @@ use_recorded_data = False # TEST
 target_max_gain  = -15 # dB
 input_threshold  = -50 # dB
 max_allowed_gain =  40 # dB
-dyn_thresh       = target_max_gain - 6 - 11 # target -6 dB reduction minus additional "magic number"
+dyn_thresh       = target_max_gain - 6 - 10 # target -6 dB reduction minus additional "magic number"
 
 channel              = -1   # initialize with invalid channel
 is_input_hist        = True # histogram of inputs per default
