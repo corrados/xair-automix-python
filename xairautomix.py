@@ -229,8 +229,8 @@ def basic_setup_mixer(mixer):
       mixer.set_value("/fx/2/par/04", [0.45833334])     # default: FX2 DAMP 3k94 Hz
       mixer.set_value("/fx/2/par/05", [0.68])           # default: FX2 DIFF 68 %
       mixer.set_value("/fx/2/par/06", [0.5])            # default: FX2 LEVEL 0 dB
-      mixer.set_value("/rtn/1/mix/fader", [0.74975562]) # default: 0 dB return level for FX1 (vocal)
-      mixer.set_value("/rtn/2/mix/fader", [0.74975562]) # default: 0 dB return level for FX2 (drums)
+      mixer.set_value("/rtn/1/mix/fader", [0.74975562]) # default:   0 dB return level for FX1 (vocal)
+      mixer.set_value("/rtn/2/mix/fader", [0.74975562]) # default:   0 dB return level for FX2 (drums)
       mixer.set_value("/rtn/3/mix/fader", [0])          # default: -90 dB return level for FX3 (not used)
       mixer.set_value("/rtn/4/mix/fader", [0])          # default: -90 dB return level for FX4 (not used)
       if len(channel_dict[ch]) > 6: # special channel settings
