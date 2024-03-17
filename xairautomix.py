@@ -100,7 +100,7 @@ data_mutex           = threading.Lock()
 def main():
   global mixer, is_XR16
   reset_histograms()
-  mixer   = x32.BehringerX32([], 10300, False, 10) # search for a mixer
+  mixer   = x32.BehringerX32([], 10300, False, 5) # initialized and search for a mixer
   is_XR16 = "XR16" in mixer.get_value("/info")[2]
   configure_rta(31) # 31: MainLR on XAIR16
   # start separate threads
