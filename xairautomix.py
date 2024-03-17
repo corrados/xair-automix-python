@@ -234,6 +234,7 @@ def basic_setup_mixer(mixer):
         mixer.set_value("/rtn/2/mix/fader", [0.74975562]) # default:   0 dB return level for FX2 (drums)
         mixer.set_value("/rtn/3/mix/fader", [0])          # default: -90 dB return level for FX3 (not used)
         mixer.set_value("/rtn/4/mix/fader", [0])          # default: -90 dB return level for FX4 (not used)
+        mixer.set_value("/config/solo/source", [14])      # default: monitor source BUS 5/6 (monitor Volker)
         if len(channel_dict[ch]) > 6: # special channel settings
           if "NOMIX" in channel_dict[ch][6]:
             mixer.set_value(f"/ch/{ch + 1:#02}/mix/lr", [0])
@@ -305,8 +306,6 @@ def receive_meter_messages():
 
 def calc_histograms(values, histograms):
   for i in range(len(values)):
-    #values[i] = -128
-    #print(int((values[i] + 128) / 129 * hist_len))
     histograms[i][int((values[i] + 128) / 129 * hist_len)] += 1
 
 def analyze_histogram(histogram):
@@ -392,26 +391,26 @@ def gui_thread():
       with data_mutex: # lock mutex as short as possible
         input_values_copy = input_values
         input_rta_copy    = input_rta
-      for i in range(len_meter2):
-        input_bars[i].set((input_values_copy[i] / 128 + 1) * 100)
-        (max_data_index, max_data_value) = analyze_histogram(input_histograms[i])
+      for ch in range(len_meter2):
+        input_bars[ch].set((input_values_copy[ch] / 128 + 1) * 100)
+        (max_data_index, max_data_value) = analyze_histogram(input_histograms[ch])
         if max_data_value > target_max_gain + 6:
-          input_labels[i].config(text=max_data_value, bg="red")
+          input_labels[ch].config(text=max_data_value, bg="red")
         else:
           if max_data_value > target_max_gain:
-            input_labels[i].config(text=max_data_value, bg="yellow")
+            input_labels[ch].config(text=max_data_value, bg="yellow")
           else:
-            input_labels[i].config(text=max_data_value, bg=window_color)
-      for i in range(len_meter6):
-        (max_data_index, max_data_value) = analyze_histogram(gatedyn_histograms[i])
+            input_labels[ch].config(text=max_data_value, bg=window_color)
+      for ch in range(len_meter6):
+        (max_data_index, max_data_value) = analyze_histogram(gatedyn_histograms[ch])
         max_data_value = 128 + max_data_value # values were inverted
         if max_data_value > 9:
-          dyn_labels[i].config(text=max_data_value, bg="red")
+          dyn_labels[ch].config(text=max_data_value, bg="red")
         else:
           if max_data_value > 6:
-            dyn_labels[i].config(text=max_data_value, bg="yellow")
+            dyn_labels[ch].config(text=max_data_value, bg="yellow")
           elif max_data_value > 0: # do not show any number if dyn is not used
-            dyn_labels[i].config(text=max_data_value, bg=window_color)
+            dyn_labels[ch].config(text=max_data_value, bg=window_color)
 
       rta.delete("all")
       for i in range(len_meter4):
