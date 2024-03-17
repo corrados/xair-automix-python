@@ -238,6 +238,10 @@ def basic_setup_mixer(mixer):
         mixer.set_value("/rtn/3/mix/fader", [0])          # default: -90 dB return level for FX3 (not used)
         mixer.set_value("/rtn/4/mix/fader", [0])          # default: -90 dB return level for FX4 (not used)
         mixer.set_value("/config/solo/source", [14])      # default: monitor source BUS 5/6 (monitor Volker)
+        mixer.set_value("/lr/eq/mode", [0])               # default: PEQ for master EQ, needed for feedback cancellation
+        for i in range(6):
+          mixer.set_value(f"/lr/eq/{i + 1}/g", [0.5])     # default: master EQ Gain 0 dB
+          mixer.set_value(f"/lr/eq/{i + 1}/q", [0])       # default: master EQ Quality 10 (minimum width for feedback cancellation)
         if len(channel_dict[ch]) > 6: # special channel settings
           if "NOMIX" in channel_dict[ch][6]:
             mixer.set_value(f"/ch/{ch + 1:#02}/mix/lr", [0])
