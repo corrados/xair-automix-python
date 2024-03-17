@@ -100,7 +100,7 @@ data_mutex           = threading.Lock()
 def main():
   global mixer, is_XR16
   reset_histograms()
-  mixer   = x32.BehringerX32([], 10300, False, 5) # initialized and search for a mixer
+  mixer   = x32.BehringerX32([], 10300, False, 4) # initialized and search for a mixer
   is_XR16 = "XR16" in mixer.get_value("/info")[2]
   configure_rta(31) # 31: MainLR on XAIR16
   # start separate threads
@@ -144,102 +144,105 @@ def set_gain(ch, x):
 
 def basic_setup_mixer(mixer):
   if tk.messagebox.askyesno(message='Are you sure to reset all mixer settings?'):
-    mixer.set_value("/lr/mix/fader", [0]) # default: main LR fader to minimum
-    for bus in range(6):
-      mixer.set_value(f"/bus/{bus + 1}/config/name", [busses_dict[bus][0]])
-      mixer.set_value(f"/bus/{bus + 1}/mix/fader", [mixer.db_to_float(busses_dict[bus][2])])
-      mixer.set_value(f"/bus/{bus + 1}/config/color", [3]) # default: monitor busses are in yellow
-      mixer.set_value(f"/bus/{bus + 1}/eq/on", [0])        # default: bus EQ off
-      if len(busses_dict[bus]) > 3: # special bus settings
-        if "LINK" in busses_dict[bus][3] and bus % 2 == 1:
-          mixer.set_value(f"/config/buslink/{bus}-{bus + 1}", [1])
-      for rtn in range(4):
-        mixer.set_value(f"/rtn/{rtn + 1}/mix/{bus + 1:#02}/level", [0]) # default: FX level to lowest value
-    for ch in channel_dict:
-      inst_group = channel_dict[ch][5]
-      set_gain(ch, channel_dict[ch][2])
-      mixer.set_value(f"/ch/{ch + 1:#02}/config/color", [inst_group[0]])
-      mixer.set_value(f"/ch/{ch + 1:#02}/config/name", [channel_dict[ch][0]])
-      mixer.set_value(f"/ch/{ch + 1:#02}/mix/on", [1])        # default: unmute channel
-      mixer.set_value(f"/ch/{ch + 1:#02}/mix/fader", [mixer.db_to_float(channel_dict[ch][1])]) # note: unmute necessary
-      mixer.set_value(f"/ch/{ch + 1:#02}/config/insrc", [ch]) # default: linear in/out mapping
-      mixer.set_value(f"/ch/{ch + 1:#02}/mix/lr", [1])        # default: send to LR master
-      mixer.set_value(f"/ch/{ch + 1:#02}/grp/mute", [0])      # default: no mute group
-      mixer.set_value(f"/-stat/solosw/{ch + 1:#02}", [0])     # default: no Solo
-      mixer.set_value(f"/ch/{ch + 1:#02}/grp/dca", [0])       # default: no DCA group
-      mixer.set_value(f"/headamp/{ch + 1:#02}/phantom", [0])  # default: no phantom power
-      mixer.set_value(f"/ch/{ch + 1:#02}/mix/pan", [0.5])     # default: middle position
-      mixer.set_value(f"/ch/{ch + 1:#02}/gate/on", [0])       # default: gate off
-      mixer.set_value(f"/ch/{ch + 1:#02}/dyn/on", [0])        # default: compressor off
-      mixer.set_value(f"/ch/{ch + 1:#02}/eq/on", [1])         # default: EQ on
-      mixer.set_value(f"/ch/{ch + 1:#02}/preamp/hpon", [1])   # default: high-pass on
-      mixer.set_value(f"/ch/{ch + 1:#02}/preamp/hpf", [mixer.freq_to_float(channel_dict[ch][3], 400)], False)
-      for i in range(4):
-        mixer.set_value(f"/ch/{ch + 1:#02}/eq/{i + 1}/type", [2]) # default: EQ, PEQ
-        mixer.set_value(f"/ch/{ch + 1:#02}/eq/{i + 1}/g", [0.5])  # default: EQ, 0 dB gain
-      for i in range(len(channel_dict[ch][4])): # individual channel EQ settings
-        if len(channel_dict[ch][4][i]) > 2:
-          mixer.set_value(f"/ch/{ch + 1:#02}/eq/{i + 1}/g", [(channel_dict[ch][4][i][0] + 15) / 30])
-          mixer.set_value(f"/ch/{ch + 1:#02}/eq/{i + 1}/f", [mixer.freq_to_float(channel_dict[ch][4][i][1])])
-          mixer.set_value(f"/ch/{ch + 1:#02}/eq/{i + 1}/q", [mixer.q_to_float(channel_dict[ch][4][i][2])])
-        else: # special case: type and frequency
-          mixer.set_value(f"/ch/{ch + 1:#02}/eq/{i + 1}/type", [channel_dict[ch][4][i][0]])
-          mixer.set_value(f"/ch/{ch + 1:#02}/eq/{i + 1}/f", [mixer.freq_to_float(channel_dict[ch][4][i][1])])
-      mixer.set_value(f"/ch/{ch + 1:#02}/dyn/keysrc", [0])            # default comp: key source SELF
-      mixer.set_value(f"/ch/{ch + 1:#02}/dyn/mode", [0])              # default comp: compresser mode
-      mixer.set_value(f"/ch/{ch + 1:#02}/dyn/auto", [0])              # default comp: auto compresser off
-      mixer.set_value(f"/ch/{ch + 1:#02}/dyn/knee", [0.4])            # default comp: knee 2
-      mixer.set_value(f"/ch/{ch + 1:#02}/dyn/det", [0])               # default comp: det PEAK
-      mixer.set_value(f"/ch/{ch + 1:#02}/dyn/env", [1])               # default comp: env LOG
-      mixer.set_value(f"/ch/{ch + 1:#02}/dyn/mix", [1.0])             # default comp: mix 100 %
-      mixer.set_value(f"/ch/{ch + 1:#02}/dyn/thr", [(dyn_thresh + 60) / 60]) # default comp: pre-defined threshold
-      if len(inst_group) > 1 and "VOCALDYN" in inst_group[1]:         # vocal dynamic presets:
-        mixer.set_value(f"/ch/{ch + 1:#02}/dyn/on", [1])              # vocal default: compresser on
-        mixer.set_value(f"/ch/{ch + 1:#02}/dyn/ratio", [5])           # vocal default: ratio 3
-        mixer.set_value(f"/ch/{ch + 1:#02}/dyn/mgain", [0.25])        # vocal default: gain 6 dB
-        mixer.set_value(f"/ch/{ch + 1:#02}/dyn/attack", [0.08333333]) # vocal default: attack 10 ms
-        mixer.set_value(f"/ch/{ch + 1:#02}/dyn/hold", [0.54])         # vocal default: hold 10 ms
-        mixer.set_value(f"/ch/{ch + 1:#02}/dyn/release", [0.45])      # vocal default: release 101 ms
-        mixer.set_value(f"/ch/{ch + 1:#02}/dyn/filter/on", [1])       # vocal default: filter on
-        mixer.set_value(f"/ch/{ch + 1:#02}/dyn/filter/type", [6])     # vocal default: filter type 3
-        mixer.set_value(f"/ch/{ch + 1:#02}/dyn/filter/f", [0.495])    # vocal default: filter 611 Hz
-      for bus in range(10):
-        mixer.set_value(f"/ch/{ch + 1:#02}/mix/{bus + 1:#02}/tap", [3]) # default: bus Pre Fader
-        mixer.set_value(f"/ch/{ch + 1:#02}/mix/{bus + 1:#02}/level", [0])
-        if bus in busses_dict:
-          mixer.set_value(f"/ch/{ch + 1:#02}/mix/{bus + 1:#02}/level", [mixer.db_to_float(busses_dict[bus][1][ch], True)])
-      for bus in range(0, 6, 2): # adjust pan in send busses per channel (every second bus)
-        if bus in busses_pan_dict:
-          mixer.set_value(f"/ch/{ch + 1:#02}/mix/{bus + 1:#02}/pan", [(int(busses_pan_dict[bus][ch] / 2) + 50) / 100])
-        else:
-          mixer.set_value(f"/ch/{ch + 1:#02}/mix/{bus + 1:#02}/pan", [0.5]) # default: middle position
-      if ch % 2 == 1:
-        mixer.set_value(f"/config/chlink/{ch}-{ch + 1}", [0]) # default: no stereo link
-      mixer.set_value("/fx/1/type", [0])                # default: FX1 Hall Reverb (for vocals)
-      mixer.set_value("/fx/1/par/01", [0.1])            # default: FX1 PRE DEL 20 ms
-      mixer.set_value("/fx/1/par/02", [0.64])           # default: FX1 DECAY 1.57 s
-      mixer.set_value("/fx/1/par/03", [0.59183675])     # default: FX1 SIZE 60
-      mixer.set_value("/fx/1/par/04", [0.58333333])     # default: FX1 DAMP 5k74 Hz
-      mixer.set_value("/fx/1/par/05", [0.82758623])     # default: FX1 DIFF 25
-      mixer.set_value("/fx/1/par/06", [0.5])            # default: FX1 LEVEL 0 dB
-      mixer.set_value("/fx/2/type", [3])                # default: FX2 Room Reverb (for drums)
-      mixer.set_value("/fx/2/par/01", [0.03])           # default: FX2 PRE DEL 6 ms
-      mixer.set_value("/fx/2/par/02", [0.08])           # default: FX2 DECAY 0.43 s
-      mixer.set_value("/fx/2/par/03", [0.19444444])     # default: FX2 SIZE 18 m
-      mixer.set_value("/fx/2/par/04", [0.45833334])     # default: FX2 DAMP 3k94 Hz
-      mixer.set_value("/fx/2/par/05", [0.68])           # default: FX2 DIFF 68 %
-      mixer.set_value("/fx/2/par/06", [0.5])            # default: FX2 LEVEL 0 dB
-      mixer.set_value("/rtn/1/mix/fader", [0.74975562]) # default:   0 dB return level for FX1 (vocal)
-      mixer.set_value("/rtn/2/mix/fader", [0.74975562]) # default:   0 dB return level for FX2 (drums)
-      mixer.set_value("/rtn/3/mix/fader", [0])          # default: -90 dB return level for FX3 (not used)
-      mixer.set_value("/rtn/4/mix/fader", [0])          # default: -90 dB return level for FX4 (not used)
-      if len(channel_dict[ch]) > 6: # special channel settings
-        if "NOMIX" in channel_dict[ch][6]:
-          mixer.set_value(f"/ch/{ch + 1:#02}/mix/lr", [0])
-        if "PHANT" in channel_dict[ch][6]:
-          mixer.set_value(f"/headamp/{ch + 1:#02}/phantom", [1])
-        if "LINK" in channel_dict[ch][6] and ch % 2 == 1:
-          mixer.set_value(f"/config/chlink/{ch}-{ch + 1}", [1])
+    try:
+      mixer.set_value("/lr/mix/fader", [0]) # default: main LR fader to minimum
+      for bus in range(6):
+        mixer.set_value(f"/bus/{bus + 1}/config/name", [busses_dict[bus][0]])
+        mixer.set_value(f"/bus/{bus + 1}/mix/fader", [mixer.db_to_float(busses_dict[bus][2])])
+        mixer.set_value(f"/bus/{bus + 1}/config/color", [3]) # default: monitor busses are in yellow
+        mixer.set_value(f"/bus/{bus + 1}/eq/on", [0])        # default: bus EQ off
+        if len(busses_dict[bus]) > 3: # special bus settings
+          if "LINK" in busses_dict[bus][3] and bus % 2 == 1:
+            mixer.set_value(f"/config/buslink/{bus}-{bus + 1}", [1])
+        for rtn in range(4):
+          mixer.set_value(f"/rtn/{rtn + 1}/mix/{bus + 1:#02}/level", [0]) # default: FX level to lowest value
+      for ch in channel_dict:
+        inst_group = channel_dict[ch][5]
+        set_gain(ch, channel_dict[ch][2])
+        mixer.set_value(f"/ch/{ch + 1:#02}/config/color", [inst_group[0]])
+        mixer.set_value(f"/ch/{ch + 1:#02}/config/name", [channel_dict[ch][0]])
+        mixer.set_value(f"/ch/{ch + 1:#02}/mix/on", [1])        # default: unmute channel
+        mixer.set_value(f"/ch/{ch + 1:#02}/mix/fader", [mixer.db_to_float(channel_dict[ch][1])]) # note: unmute necessary
+        mixer.set_value(f"/ch/{ch + 1:#02}/config/insrc", [ch]) # default: linear in/out mapping
+        mixer.set_value(f"/ch/{ch + 1:#02}/mix/lr", [1])        # default: send to LR master
+        mixer.set_value(f"/ch/{ch + 1:#02}/grp/mute", [0])      # default: no mute group
+        mixer.set_value(f"/-stat/solosw/{ch + 1:#02}", [0])     # default: no Solo
+        mixer.set_value(f"/ch/{ch + 1:#02}/grp/dca", [0])       # default: no DCA group
+        mixer.set_value(f"/headamp/{ch + 1:#02}/phantom", [0])  # default: no phantom power
+        mixer.set_value(f"/ch/{ch + 1:#02}/mix/pan", [0.5])     # default: middle position
+        mixer.set_value(f"/ch/{ch + 1:#02}/gate/on", [0])       # default: gate off
+        mixer.set_value(f"/ch/{ch + 1:#02}/dyn/on", [0])        # default: compressor off
+        mixer.set_value(f"/ch/{ch + 1:#02}/eq/on", [1])         # default: EQ on
+        mixer.set_value(f"/ch/{ch + 1:#02}/preamp/hpon", [1])   # default: high-pass on
+        mixer.set_value(f"/ch/{ch + 1:#02}/preamp/hpf", [mixer.freq_to_float(channel_dict[ch][3], 400)], False)
+        for i in range(4):
+          mixer.set_value(f"/ch/{ch + 1:#02}/eq/{i + 1}/type", [2]) # default: EQ, PEQ
+          mixer.set_value(f"/ch/{ch + 1:#02}/eq/{i + 1}/g", [0.5])  # default: EQ, 0 dB gain
+        for i in range(len(channel_dict[ch][4])): # individual channel EQ settings
+          if len(channel_dict[ch][4][i]) > 2:
+            mixer.set_value(f"/ch/{ch + 1:#02}/eq/{i + 1}/g", [(channel_dict[ch][4][i][0] + 15) / 30])
+            mixer.set_value(f"/ch/{ch + 1:#02}/eq/{i + 1}/f", [mixer.freq_to_float(channel_dict[ch][4][i][1])])
+            mixer.set_value(f"/ch/{ch + 1:#02}/eq/{i + 1}/q", [mixer.q_to_float(channel_dict[ch][4][i][2])])
+          else: # special case: type and frequency
+            mixer.set_value(f"/ch/{ch + 1:#02}/eq/{i + 1}/type", [channel_dict[ch][4][i][0]])
+            mixer.set_value(f"/ch/{ch + 1:#02}/eq/{i + 1}/f", [mixer.freq_to_float(channel_dict[ch][4][i][1])])
+        mixer.set_value(f"/ch/{ch + 1:#02}/dyn/keysrc", [0])            # default comp: key source SELF
+        mixer.set_value(f"/ch/{ch + 1:#02}/dyn/mode", [0])              # default comp: compresser mode
+        mixer.set_value(f"/ch/{ch + 1:#02}/dyn/auto", [0])              # default comp: auto compresser off
+        mixer.set_value(f"/ch/{ch + 1:#02}/dyn/knee", [0.4])            # default comp: knee 2
+        mixer.set_value(f"/ch/{ch + 1:#02}/dyn/det", [0])               # default comp: det PEAK
+        mixer.set_value(f"/ch/{ch + 1:#02}/dyn/env", [1])               # default comp: env LOG
+        mixer.set_value(f"/ch/{ch + 1:#02}/dyn/mix", [1.0])             # default comp: mix 100 %
+        mixer.set_value(f"/ch/{ch + 1:#02}/dyn/thr", [(dyn_thresh + 60) / 60]) # default comp: pre-defined threshold
+        if len(inst_group) > 1 and "VOCALDYN" in inst_group[1]:         # vocal dynamic presets:
+          mixer.set_value(f"/ch/{ch + 1:#02}/dyn/on", [1])              # vocal default: compresser on
+          mixer.set_value(f"/ch/{ch + 1:#02}/dyn/ratio", [5])           # vocal default: ratio 3
+          mixer.set_value(f"/ch/{ch + 1:#02}/dyn/mgain", [0.25])        # vocal default: gain 6 dB
+          mixer.set_value(f"/ch/{ch + 1:#02}/dyn/attack", [0.08333333]) # vocal default: attack 10 ms
+          mixer.set_value(f"/ch/{ch + 1:#02}/dyn/hold", [0.54])         # vocal default: hold 10 ms
+          mixer.set_value(f"/ch/{ch + 1:#02}/dyn/release", [0.45])      # vocal default: release 101 ms
+          mixer.set_value(f"/ch/{ch + 1:#02}/dyn/filter/on", [1])       # vocal default: filter on
+          mixer.set_value(f"/ch/{ch + 1:#02}/dyn/filter/type", [6])     # vocal default: filter type 3
+          mixer.set_value(f"/ch/{ch + 1:#02}/dyn/filter/f", [0.495])    # vocal default: filter 611 Hz
+        for bus in range(10):
+          mixer.set_value(f"/ch/{ch + 1:#02}/mix/{bus + 1:#02}/tap", [3]) # default: bus Pre Fader
+          mixer.set_value(f"/ch/{ch + 1:#02}/mix/{bus + 1:#02}/level", [0])
+          if bus in busses_dict:
+            mixer.set_value(f"/ch/{ch + 1:#02}/mix/{bus + 1:#02}/level", [mixer.db_to_float(busses_dict[bus][1][ch], True)])
+        for bus in range(0, 6, 2): # adjust pan in send busses per channel (every second bus)
+          if bus in busses_pan_dict:
+            mixer.set_value(f"/ch/{ch + 1:#02}/mix/{bus + 1:#02}/pan", [(int(busses_pan_dict[bus][ch] / 2) + 50) / 100])
+          else:
+            mixer.set_value(f"/ch/{ch + 1:#02}/mix/{bus + 1:#02}/pan", [0.5]) # default: middle position
+        if ch % 2 == 1:
+          mixer.set_value(f"/config/chlink/{ch}-{ch + 1}", [0]) # default: no stereo link
+        mixer.set_value("/fx/1/type", [0])                # default: FX1 Hall Reverb (for vocals)
+        mixer.set_value("/fx/1/par/01", [0.1])            # default: FX1 PRE DEL 20 ms
+        mixer.set_value("/fx/1/par/02", [0.64])           # default: FX1 DECAY 1.57 s
+        mixer.set_value("/fx/1/par/03", [0.59183675])     # default: FX1 SIZE 60
+        mixer.set_value("/fx/1/par/04", [0.58333333])     # default: FX1 DAMP 5k74 Hz
+        mixer.set_value("/fx/1/par/05", [0.82758623])     # default: FX1 DIFF 25
+        mixer.set_value("/fx/1/par/06", [0.5])            # default: FX1 LEVEL 0 dB
+        mixer.set_value("/fx/2/type", [3])                # default: FX2 Room Reverb (for drums)
+        mixer.set_value("/fx/2/par/01", [0.03])           # default: FX2 PRE DEL 6 ms
+        mixer.set_value("/fx/2/par/02", [0.08])           # default: FX2 DECAY 0.43 s
+        mixer.set_value("/fx/2/par/03", [0.19444444])     # default: FX2 SIZE 18 m
+        mixer.set_value("/fx/2/par/04", [0.45833334])     # default: FX2 DAMP 3k94 Hz
+        mixer.set_value("/fx/2/par/05", [0.68])           # default: FX2 DIFF 68 %
+        mixer.set_value("/fx/2/par/06", [0.5])            # default: FX2 LEVEL 0 dB
+        mixer.set_value("/rtn/1/mix/fader", [0.74975562]) # default:   0 dB return level for FX1 (vocal)
+        mixer.set_value("/rtn/2/mix/fader", [0.74975562]) # default:   0 dB return level for FX2 (drums)
+        mixer.set_value("/rtn/3/mix/fader", [0])          # default: -90 dB return level for FX3 (not used)
+        mixer.set_value("/rtn/4/mix/fader", [0])          # default: -90 dB return level for FX4 (not used)
+        if len(channel_dict[ch]) > 6: # special channel settings
+          if "NOMIX" in channel_dict[ch][6]:
+            mixer.set_value(f"/ch/{ch + 1:#02}/mix/lr", [0])
+          if "PHANT" in channel_dict[ch][6]:
+            mixer.set_value(f"/headamp/{ch + 1:#02}/phantom", [1])
+          if "LINK" in channel_dict[ch][6] and ch % 2 == 1:
+            mixer.set_value(f"/config/chlink/{ch}-{ch + 1}", [1])
+    except:
+      tk.messagebox.showerror(message='Reset failed!')
 
 
 def configure_rta(channel):
