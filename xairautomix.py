@@ -76,6 +76,7 @@ target_max_gain       = -15 # dB
 set_gain_input_thresh = -40 # dB
 no_input_threshold    = -80 # dB
 dyn_thresh            = target_max_gain - 6 - 10 # target -6 dB reduction minus additional "magic number"
+feedback_threshold_dB = 35
 
 channel              = -1   # initialize with invalid channel
 is_input_hist        = True # histogram of inputs per default
@@ -85,6 +86,7 @@ len_meter6           = 16   # ALL DYN (16 gate, 16 dyn(ch), 6 dyn(bus), dyn(lr) 
 hist_len             = 128  # histogram bins
 rta_hist_height      = 120
 meter_update_s       = 0.05 # update cycle frequency for meter data is 50 ms
+min_feedback_count   = 0.4 / meter_update_s # minimum 0.4 s feedback duration
 rta_line_width       = 3
 hist_line_width      = 3
 is_XR16              = False
@@ -93,6 +95,7 @@ file_path            = "test.dat"
 input_values         = [0] * len_meter2
 gatedyn_values       = [0] * len_meter6
 input_rta            = [0] * len_meter4
+feedback_count       = [0] * len_meter4
 all_raw_inputs_queue = deque()
 data_mutex           = threading.Lock()
 
@@ -324,16 +327,22 @@ def reset_histograms():
 
 # TEST
 def detect_feedback():
+  global feedback_count
   with data_mutex: # lock mutex as short as possible
-    input_rta_copy = input_rta
+    input_rta_copy = input_rta # TODO access to vectdor is arbitrary, queue would be better (would require a loop here)
   max_index = numpy.argmax(input_rta_copy)
-  if max_index > 1 and max_index < len(input_rta_copy) - 2:
-    threshold_dB = 35
+  if max_index > 1 and max_index < len_meter4 - 2:
     max_value = input_rta_copy[max_index]
-    if (input_rta_copy[max_index + 2] < max_value - threshold_dB and
-        input_rta_copy[max_index - 2] < max_value - threshold_dB):
+    if (input_rta_copy[max_index + 2] < max_value - feedback_threshold_dB and
+        input_rta_copy[max_index - 2] < max_value - feedback_threshold_dB):
+      feedback_count[max_index] += 1
       # TODO check for how long the same max index is present (> 1 second, e.g.)
-      print((max_value, max_index))
+      if any(x >= min_feedback_count for x in feedback_count):
+        f = numpy.exp(max_index / len_meter4 * numpy.log(20000 / 20)) * 20 # inverse of mixer.freq_to_float
+        print(f"Feedback detected at frequency: {f}")
+        feedback_count = [0 for x in feedback_count] # clear all counts
+    else:
+      feedback_count = [0 for x in feedback_count] # clear all counts
 
 
 
