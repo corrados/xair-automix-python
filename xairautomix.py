@@ -79,7 +79,6 @@ dyn_thresh            = target_max_gain - 6 - 10 # target -6 dB reduction minus 
 feedback_threshold_dB = 35
 
 channel              = -1   # initialize with invalid channel
-is_input_hist        = True # histogram of inputs per default
 len_meter2           = 18   # ALL INPUTS (16 mic, 2 aux, 18 usb = 36 values total but we only need the mic inputs)
 len_meter4           = 100  # RTA100 (100 bins RTA = 100 values)
 len_meter6           = 16   # ALL DYN (16 gate, 16 dyn(ch), 6 dyn(bus), dyn(lr) = 39 values total but we want 16 dyn only)
@@ -93,7 +92,6 @@ is_XR16              = False
 exit_threads         = False
 file_path            = "test.dat"
 input_values         = [0] * len_meter2
-gatedyn_values       = [0] * len_meter6
 input_rta            = [0] * len_meter4
 feedback_count       = [0] * len_meter4
 all_raw_inputs_queue = deque()
@@ -276,7 +274,7 @@ if use_recorded_data:
 
 
 def receive_meter_messages():
-  global mixer, input_values, input_rta, gatedyn_values, count
+  global mixer, input_values, input_rta, gatedyn_min_values, count
   while not exit_threads:
     message = mixer.get_msg_from_queue()
     if message.address == "/meters/2" or message.address == "/meters/4" or message.address == "/meters/6":
@@ -302,9 +300,7 @@ def receive_meter_messages():
           elif message.address == "/meters/4":
             input_rta = values
           elif message.address == "/meters/6":
-            gatedyn_values = values[16:16 + len_meter6] # note: cut out only dyn values -> offset of 16
-            gatedyn_values = [-x - 128 for x in gatedyn_values] # invert values for max in histogram
-            calc_histograms(gatedyn_values, gatedyn_histograms)
+            gatedyn_min_values = numpy.minimum(gatedyn_min_values, values[16:16 + len_meter6]) # dyn: 16..31
     else:
       # no meters message, put it back on queue and give other thread some time to process message
       mixer.put_msg_on_queue(message)
@@ -321,10 +317,10 @@ def analyze_histogram(histogram):
   return (max_data_index, int(max_data_index / hist_len * 129 - 128))
 
 def reset_histograms():
-  global input_histograms, gatedyn_histograms
+  global input_histograms, gatedyn_min_values
   with data_mutex:
     input_histograms   = [[0] * hist_len for i in range(len_meter2)]
-    gatedyn_histograms = [[0] * hist_len for i in range(len_meter6)]
+    gatedyn_min_values = [0] * len_meter6
 
 
 
@@ -352,7 +348,7 @@ def detect_feedback():
 
 
 def gui_thread():
-  global exit_threads, channel, is_input_hist
+  global exit_threads, channel
   window = tk.Tk(className="XR Auto Mix")
   window_color = window.cget("bg")
   (input_bars, input_labels, dyn_labels, rta_bars) = ([], [], [], [])
@@ -389,9 +385,6 @@ def gui_thread():
   channel_sel.current(13)#0)
   channel_sel.pack(side='left')
   tk.Label(selection_f, text="Histogram Input:").pack(side='left')
-  hist_in_sel = ttk.Combobox(selection_f, values=("input", "dyn"))
-  hist_in_sel.current(0)
-  hist_in_sel.pack(side='left')
 
   # RTA/histogram
   rta = tk.Canvas(window, width=len_meter4 * rta_line_width + len_meter4, height=rta_hist_height)
@@ -415,8 +408,7 @@ def gui_thread():
           else:
             input_labels[ch].config(text=max_data_value, bg=window_color)
       for ch in range(len_meter6):
-        (max_data_index, max_data_value) = analyze_histogram(gatedyn_histograms[ch])
-        max_data_value = 128 + max_data_value # values were inverted
+        max_data_value = int(numpy.round(-gatedyn_min_values[ch]))
         if max_data_value > 9:
           dyn_labels[ch].config(text=max_data_value, bg="red")
         else:
@@ -431,26 +423,20 @@ def gui_thread():
         y = (input_rta_copy[i] / 128 + 1) * rta_hist_height
         rta.create_line(x, rta_hist_height, x, rta_hist_height - y, fill="#476042", width=rta_line_width)
 
-      if is_input_hist:
-        histogram = input_histograms[channel]
-      else:
-        histogram = gatedyn_histograms[min(len_meter6 - 1, channel)]
-      (max_data_index, max_data_value) = analyze_histogram(histogram)
-      max_hist  = max(histogram)
-      max_index = numpy.argmax(histogram)
+      (max_data_index, max_data_value) = analyze_histogram(input_histograms[channel])
+      max_hist  = max(input_histograms[channel])
+      max_index = numpy.argmax(input_histograms[channel])
       if max_hist > 0:
         hist.delete("all")
         for i in range(hist_len):
           x = hist_line_width + i * hist_line_width + i
-          y = histogram[i] * rta_hist_height / max_hist
+          y = input_histograms[channel][i] * rta_hist_height / max_hist
           color = "blue" if i == max_index else "red" if i == max_data_index else "#476042"
           hist.create_line(x, rta_hist_height, x, rta_hist_height - y, fill=color, width=hist_line_width)
 
       if int(channel_sel.get()) - 1 is not channel:
         channel = int(channel_sel.get()) - 1
         #configure_rta(channel) # configure_rta(31) # 31: MainLR on XAIR16
-      if (hist_in_sel.get() == "input") is not is_input_hist:
-        is_input_hist = bool(hist_in_sel.get() == "input")
 
       # TEST
       detect_feedback()
