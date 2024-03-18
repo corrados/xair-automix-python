@@ -114,7 +114,7 @@ def main():
 def apply_optimal_gains():
   with data_mutex:
     for ch in range(len(channel_dict)):
-      (max_data_index, max_data_value) = analyze_histogram(input_histograms[ch])
+      max_data_value = input_max_values[ch]
       if max_data_value > no_input_threshold:
         mixer.set_value(f"/ch/{ch + 1:#02}/mix/on", [1]) # unmute channel
         if max_data_value > set_gain_input_thresh:
@@ -274,7 +274,7 @@ if use_recorded_data:
 
 
 def receive_meter_messages():
-  global mixer, input_values, input_rta, gatedyn_min_values, count
+  global mixer, input_values, input_max_values, input_rta, gatedyn_min_values, count
   while not exit_threads:
     message = mixer.get_msg_from_queue()
     if message.address == "/meters/2" or message.address == "/meters/4" or message.address == "/meters/6":
@@ -296,6 +296,7 @@ def receive_meter_messages():
 
             all_raw_inputs_queue.append(raw_values[:len_meter2])
             input_values = values[:len_meter2]
+            input_max_values = numpy.maximum(input_max_values, input_values)
             calc_histograms(input_values, input_histograms)
           elif message.address == "/meters/4":
             input_rta = values
@@ -311,15 +312,11 @@ def calc_histograms(values, histograms):
   for i in range(len(values)):
     histograms[i][int((values[i] + 128) / 129 * hist_len)] += 1
 
-def analyze_histogram(histogram):
-  max_data_index = len(histogram) - 1 # start value
-  while histogram[max_data_index] == 0 and max_data_index > 0: max_data_index -= 1
-  return (max_data_index, int(max_data_index / hist_len * 129 - 128))
-
 def reset_histograms():
-  global input_histograms, gatedyn_min_values
+  global input_histograms, input_max_values, gatedyn_min_values
   with data_mutex:
     input_histograms   = [[0] * hist_len for i in range(len_meter2)]
+    input_max_values   = [-128] * len_meter2
     gatedyn_min_values = [0] * len_meter6
 
 
@@ -399,7 +396,7 @@ def gui_thread():
         input_rta_copy    = input_rta
       for ch in range(len_meter2):
         input_bars[ch].set((input_values_copy[ch] / 128 + 1) * 100)
-        (max_data_index, max_data_value) = analyze_histogram(input_histograms[ch])
+        max_data_value = int(numpy.ceil(input_max_values[ch]))
         if max_data_value > target_max_gain + 6:
           input_labels[ch].config(text=max_data_value, bg="red")
         else:
@@ -423,7 +420,6 @@ def gui_thread():
         y = (input_rta_copy[i] / 128 + 1) * rta_hist_height
         rta.create_line(x, rta_hist_height, x, rta_hist_height - y, fill="#476042", width=rta_line_width)
 
-      (max_data_index, max_data_value) = analyze_histogram(input_histograms[channel])
       max_hist  = max(input_histograms[channel])
       max_index = numpy.argmax(input_histograms[channel])
       if max_hist > 0:
@@ -431,7 +427,7 @@ def gui_thread():
         for i in range(hist_len):
           x = hist_line_width + i * hist_line_width + i
           y = input_histograms[channel][i] * rta_hist_height / max_hist
-          color = "blue" if i == max_index else "red" if i == max_data_index else "#476042"
+          color = "blue" if i == max_index else "#476042"
           hist.create_line(x, rta_hist_height, x, rta_hist_height - y, fill=color, width=hist_line_width)
 
       if int(channel_sel.get()) - 1 is not channel:
