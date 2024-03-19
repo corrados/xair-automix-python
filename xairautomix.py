@@ -115,11 +115,11 @@ def main():
 def apply_optimal_gains():
   with data_mutex:
     for ch in range(len(channel_dict)):
-      max_data_value = input_max_values[ch]
-      if max_data_value > no_input_threshold:
+      max_value = input_max_values[ch]
+      if max_value > no_input_threshold:
         mixer.set_value(f"/ch/{ch + 1:#02}/mix/on", [1]) # unmute channel
-        if max_data_value > set_gain_input_thresh:
-          set_gain(ch, get_gain(ch) - (max_data_value - target_max_gain))
+        if max_value > set_gain_input_thresh:
+          set_gain(ch, get_gain(ch) - (max_value - target_max_gain))
       else:
         mixer.set_value(f"/ch/{ch + 1:#02}/mix/on", [0]) # mute channel with no input level
   reset_histograms() # history needs to be reset on updated gain settings
@@ -405,23 +405,23 @@ def gui_thread():
         input_rta_copy    = input_rta
       for ch in range(len_meter2):
         input_bars[ch].set((input_values_copy[ch] / 128 + 1) * 100)
-        max_data_value = int(numpy.ceil(input_max_values[ch]))
-        if max_data_value > target_max_gain + 6:
-          input_labels[ch].config(text=max_data_value, bg="red")
+        max_value = int(numpy.ceil(input_max_values[ch]))
+        if max_value > target_max_gain + 6:
+          input_labels[ch].config(text=max_value, bg="red")
         else:
-          if max_data_value > target_max_gain:
-            input_labels[ch].config(text=max_data_value, bg="yellow")
+          if (max_value > set_gain_input_thresh and max_value < target_max_gain - 6) or max_value > target_max_gain + 3:
+            input_labels[ch].config(text=max_value, bg="yellow")
           else:
-            input_labels[ch].config(text=max_data_value, bg=window_color)
+            input_labels[ch].config(text=max_value, bg=window_color)
       for ch in range(len_meter6):
-        max_data_value = int(numpy.round(-gatedyn_min_values[ch]))
-        if max_data_value > 9:
-          dyn_labels[ch].config(text=max_data_value, bg="red")
+        max_value = int(numpy.round(-gatedyn_min_values[ch]))
+        if max_value > 9:
+          dyn_labels[ch].config(text=max_value, bg="red")
         else:
-          if max_data_value > 6:
-            dyn_labels[ch].config(text=max_data_value, bg="yellow")
-          elif max_data_value > 0: # do not show any number if dyn is not used
-            dyn_labels[ch].config(text=max_data_value, bg=window_color)
+          if max_value > 6:
+            dyn_labels[ch].config(text=max_value, bg="yellow")
+          elif max_value > 0: # do not show any number if dyn is not used
+            dyn_labels[ch].config(text=max_value, bg=window_color)
 
       rta.delete("all")
       for i in range(len_meter4):
