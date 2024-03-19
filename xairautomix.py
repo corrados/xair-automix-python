@@ -90,6 +90,7 @@ rta_line_width       = 3
 hist_line_width      = 3
 is_XR16              = False
 exit_threads         = False
+do_feedback_cancel   = False
 file_path            = "test.dat"
 input_values         = [0] * len_meter2
 input_rta            = [0] * len_meter4
@@ -236,10 +237,10 @@ def basic_setup_mixer(mixer):
         mixer.set_value("/rtn/3/mix/fader", [0])          # default: -90 dB return level for FX3 (not used)
         mixer.set_value("/rtn/4/mix/fader", [0])          # default: -90 dB return level for FX4 (not used)
         mixer.set_value("/config/solo/source", [14])      # default: monitor source BUS 5/6 (monitor Volker)
+        mixer.set_value("/lr/eq/on", [0])                 # default: master EQ off
         mixer.set_value("/lr/eq/mode", [0])               # default: PEQ for master EQ, needed for feedback cancellation
         for i in range(6):
           mixer.set_value(f"/lr/eq/{i + 1}/g", [0.5])     # default: master EQ Gain 0 dB
-          mixer.set_value(f"/lr/eq/{i + 1}/q", [0])       # default: master EQ Quality 10 (minimum width for feedback cancellation)
         if len(channel_dict[ch]) > 6: # special channel settings
           if "NOMIX" in channel_dict[ch][6]:
             mixer.set_value(f"/ch/{ch + 1:#02}/mix/lr", [0])
@@ -320,10 +321,12 @@ def reset_histograms():
     gatedyn_min_values = [0] * len_meter6
 
 
+def switch_feedback_cancellation():
+  global do_feedback_cancel
+  do_feedback_cancel = not do_feedback_cancel
 
 
-# TEST
-def detect_feedback():
+def detect_and_cancel_feedback():
   global feedback_count
   with data_mutex: # lock mutex as short as possible
     input_rta_copy = input_rta # TODO access to vectdor is arbitrary, queue would be better (would require a loop here)
@@ -333,15 +336,20 @@ def detect_feedback():
     if (input_rta_copy[max_index + 2] < max_value - feedback_threshold_dB and
         input_rta_copy[max_index - 2] < max_value - feedback_threshold_dB):
       feedback_count[max_index] += 1
-      # TODO check for how long the same max index is present (> 1 second, e.g.)
       if any(x >= min_feedback_count for x in feedback_count):
         f = numpy.exp(max_index / len_meter4 * numpy.log(20000 / 20)) * 20 # inverse of mixer.freq_to_float
-        print(f"Feedback detected at frequency: {f}")
+        for i in range(6):
+          if mixer.get_value(f"/lr/eq/{i + 1}/g")[0] == 0.5: # find free EQ band
+            print(f"Feedback cancelled at frequency: {f}")
+            mixer.set_value(f"/lr/eq/{i + 1}/type", [2]) # PEQ
+            mixer.set_value(f"/lr/eq/{i + 1}/q", [0])    # EQ Quality 10 (minimum width)
+            mixer.set_value(f"/lr/eq/{i + 1}/g", [0.4])  # gain to -3 dB
+            mixer.set_value(f"/lr/eq/{i + 1}/f", [mixer.freq_to_float(f)])
+            mixer.set_value("/lr/eq/on", [1])
+            break;
         feedback_count = [0 for x in feedback_count] # clear all counts
     else:
       feedback_count = [0 for x in feedback_count] # clear all counts
-
-
 
 
 def gui_thread():
@@ -357,7 +365,8 @@ def gui_thread():
   # buttons
   tk.Button(buttons_f, text="Reset Histograms",command=lambda: reset_histograms()).pack(side='left')
   tk.Button(buttons_f, text="Apply Gains",command=lambda: apply_optimal_gains()).pack(side='left')
-  tk.Button(buttons_f, text="Apply Faders",command=lambda: print("Button Apply Faders pressed")).pack(side='left')
+  b_feedback = tk.Button(buttons_f, text="Feedback Cancellation",command=lambda: switch_feedback_cancellation())
+  b_feedback.pack(side='left')
   tk.Button(buttons_f, text="Reset All",command=lambda: basic_setup_mixer(mixer)).pack(side='left')
 
   # input level meters
@@ -434,8 +443,11 @@ def gui_thread():
         channel = int(channel_sel.get()) - 1
         #configure_rta(channel) # configure_rta(31) # 31: MainLR on XAIR16
 
-      # TEST
-      detect_feedback()
+      if do_feedback_cancel:
+        b_feedback.config(bg="red")
+        detect_and_cancel_feedback()
+      else:
+        b_feedback.config(bg=window_color)
 
       window.update()
       time.sleep(meter_update_s)
