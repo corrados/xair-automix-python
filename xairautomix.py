@@ -76,7 +76,7 @@ target_max_gain       = -15 # dB
 set_gain_input_thresh = -40 # dB
 no_input_threshold    = -80 # dB
 dyn_thresh            = target_max_gain - 6 - 10 # target -6 dB reduction minus additional "magic number"
-feedback_threshold_dB = 35
+feedback_threshold_dB = 30
 
 channel              = -1   # initialize with invalid channel
 len_meter2           = 18   # ALL INPUTS (16 mic, 2 aux, 18 usb = 36 values total but we only need the mic inputs)
