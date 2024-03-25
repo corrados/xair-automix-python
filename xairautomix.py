@@ -314,7 +314,7 @@ def receive_meter_messages():
 
 def calc_histograms(values, histograms):
   for i in range(len(values)):
-    histograms[i][int((values[i] + 128) / 129 * hist_len)] += 1
+    histograms[i][min(127, round((values[i] + 128) / 128 * hist_len))] += 1
 
 def reset_histograms():
   global input_histograms, input_max_values, gatedyn_min_values
