@@ -36,6 +36,7 @@ from collections import deque
 import matplotlib.pyplot as plt # TODO somehow needed for "messagebox.askyesno"?
 import tkinter as tk
 from tkinter import ttk
+from scipy.optimize import curve_fit
 
 # mixer channel setup, channel_dict: [name, fader, gain, HP, group, special]
 special = [0]
@@ -74,7 +75,7 @@ busses_pan_dict = { \
   2:[0, 0, -30, 60, -94, 44, -100,  32, -40, 0, 0,   0,  0, -46, -100, 100], \
   4:[0, 0,  20, 42, -50,  0, -100, 100,  40, 0, 0, -18, 18,   0, -100, 100]}
 
-use_recorded_data     = False # TEST
+use_recorded_data     = True # TEST
 target_max_gain       = -15 # dB
 set_gain_input_thresh = -40 # dB
 no_input_threshold    = -80 # dB
@@ -317,11 +318,50 @@ def calc_histograms(values, histograms):
     histograms[i][min(127, round((values[i] + 128) / 128 * hist_len))] += 1
 
 def reset_histograms():
-  global input_histograms, input_max_values, gatedyn_min_values
+  global input_histograms, input_max_values, gatedyn_min_values, hist_models
   with data_mutex:
     input_histograms   = [[0] * hist_len for i in range(len_meter2)]
+    hist_models        = [[0] * hist_len for i in range(len_meter2)]
     input_max_values   = [-128] * len_meter2
     gatedyn_min_values = [0] * len_meter6
+
+
+
+
+# TEST
+#def func(x, a, b, c):
+#  return a * numpy.exp(-b * x) + c
+#def func(x, a, b):
+#  return a * x + b
+def func(x, a, b, c):
+  return a * numpy.exp(-1 / 2 * numpy.square((x - c) / b))
+
+def analyze_histogram(ch):
+  global hist_models
+
+  # TEST
+  x = []
+  start_index = 0
+  start_found = False
+  stop_found  = False
+  for y in input_histograms[ch]:
+    if y > 0 and not stop_found:
+      start_found = True
+      x.append(y)
+    else:
+      if start_found:
+        stop_found = True
+      else:
+        start_index += 1
+
+  try:
+    (popt, pcov) = curve_fit(func, range(len(x)), x)
+    for i in range(len(x)):
+      hist_models[ch][start_index + i] = func(i, popt[0], popt[1], popt[2])
+  except:
+    pass
+
+
 
 
 def switch_feedback_cancellation():
@@ -391,7 +431,7 @@ def gui_thread():
   tk.Label(selection_f, text="Channel Selection:").pack(side='left')
   channel_sel = ttk.Combobox(selection_f)
   channel_sel['values'] = [f"{x}" for x in range(1, len_meter2 + 1)]
-  channel_sel.current(13)#0)
+  channel_sel.current(7)#13)#0)
   channel_sel.pack(side='left')
   tk.Label(selection_f, text="Histogram Input:").pack(side='left')
 
@@ -432,6 +472,10 @@ def gui_thread():
         y = (input_rta_copy[i] / 128 + 1) * rta_hist_height
         rta.create_line(x, rta_hist_height, x, rta_hist_height - y, fill="#476042", width=rta_line_width)
 
+      # TEST
+      analyze_histogram(channel)
+
+
       max_hist  = max(input_histograms[channel])
       max_index = numpy.argmax(input_histograms[channel])
       if max_hist > 0:
@@ -441,6 +485,15 @@ def gui_thread():
           y = input_histograms[channel][i] * rta_hist_height / max_hist
           color = "blue" if i == max_index else "#476042"
           hist.create_line(x, rta_hist_height, x, rta_hist_height - y, fill=color, width=hist_line_width)
+
+        # TEST
+        for i in range(len(hist_models[channel])):
+          if max(hist_models[channel]) > 0:
+            x = hist_line_width + i * hist_line_width + i
+            y = hist_models[channel][i] * rta_hist_height / max(hist_models[channel])
+            #print(y)
+            hist.create_line(x, rta_hist_height, x, rta_hist_height - y, fill="red", width=2)
+
 
       if int(channel_sel.get()) - 1 is not channel:
         channel = int(channel_sel.get()) - 1
