@@ -329,31 +329,14 @@ def reset_histograms():
 
 
 # TEST
-#def func(x, a, b, c):
-#  return a * numpy.exp(-b * x) + c
-#def func(x, a, b):
-#  return a * x + b
 def func(x, a, b, c):
-  return a * numpy.exp(-1 / 2 * numpy.square((x - c) / b))
+  return a * numpy.exp(-numpy.square((x - c) / b))
 
 def analyze_histogram(ch):
   global hist_models
-
-  # TEST
-  x = []
-  start_index = 0
-  start_found = False
-  stop_found  = False
-  for y in input_histograms[ch]:
-    if y > 0 and not stop_found:
-      start_found = True
-      x.append(y)
-    else:
-      if start_found:
-        stop_found = True
-      else:
-        start_index += 1
-
+  indices     = [i for i, v in enumerate(input_histograms[ch]) if v > 0]
+  start_index = min(indices)
+  x           = input_histograms[ch][start_index:max(indices)]
   try:
     (popt, pcov) = curve_fit(func, range(len(x)), x)
     for i in range(len(x)):
