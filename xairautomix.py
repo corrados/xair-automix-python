@@ -339,6 +339,11 @@ def analyze_histogram(ch):
   x           = input_histograms[ch][start_index:max(indices)]
   try:
     (popt, pcov) = curve_fit(func, range(len(x)), x)
+
+    # TEST 3 times sigma is approx. 99.7 % probability
+    max_data_index = start_index + popt[2] + 3 * abs(popt[1])
+    print((max_data_index / hist_len * 128 - 128, input_max_values[ch]))
+
     for i in range(len(x)):
       hist_models[ch][start_index + i] = func(i, popt[0], popt[1], popt[2])
   except:
