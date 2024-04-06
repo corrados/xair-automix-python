@@ -75,7 +75,7 @@ busses_pan_dict = { \
   2:[0, 0, -30, 60, -94, 44, -100,  32, -40, 0, 0,   0,  0, -46, -100, 100], \
   4:[0, 0,  20, 42, -50,  0, -100, 100,  40, 0, 0, -18, 18,   0, -100, 100]}
 
-use_recorded_data     = True # TEST
+use_recorded_data     = False # TEST
 target_max_gain       = -15 # dB
 set_gain_input_thresh = -40 # dB
 no_input_threshold    = -80 # dB
@@ -119,7 +119,15 @@ def main():
 def apply_optimal_gains():
   with data_mutex:
     for ch in range(len(channel_dict)):
-      max_value = input_max_values[ch]
+
+      # TEST use Gauss values instead
+      max_value = analyze_histogram(ch)
+      if max_value == 0:
+        max_value = input_max_values[ch]
+
+      #max_value = input_max_values[ch]
+
+
       if max_value > no_input_threshold:
         mixer.set_value(f"/ch/{ch + 1:#02}/mix/on", [1]) # unmute channel
         if max_value > set_gain_input_thresh:
@@ -334,21 +342,35 @@ def func(x, a, b, c):
 
 def analyze_histogram(ch):
   global hist_models
-  indices     = [i for i, v in enumerate(input_histograms[ch]) if v > 0]
-  start_index = min(indices)
-  x           = input_histograms[ch][start_index:max(indices)]
+  input_max_value_gauss = 0
+
+  ## TEST1: use all values from first >0 to last >0 (no matter if =0 in the middle or not)
+  #indices     = [i for i, v in enumerate(input_histograms[ch]) if v > 0]
+  #start_index = min(indices)
+  #x           = input_histograms[ch][start_index:max(indices)]
+
+  # TEST2: only use >0 values right/left of max
+  num_left_right = 6
+  max_index = numpy.argmax(input_histograms[ch])
+  if max_index / hist_len * 128 - 128 > no_input_threshold:
+    start_index = max(0, max_index - num_left_right)
+    x           = input_histograms[ch][start_index:min(len(input_histograms[ch]) - 1, max_index + num_left_right)]
+
   try:
     (popt, pcov) = curve_fit(func, range(len(x)), x)
 
-    # TEST 3 times sigma is approx. 99.7 % probability
-    max_data_index = start_index + popt[2] + 3 * abs(popt[1])
-    print((max_data_index / hist_len * 128 - 128, input_max_values[ch]))
+    # TEST: 3 times sigma is approx. 99.7 % probability
+    #       2 times sigma is approx. 95.5 % probability
+    # max_data_index = start_index + popt[2] + 3 * abs(popt[1]) # 3 times sigma
+    max_data_index = start_index + popt[2] + 2 * abs(popt[1]) # 2 times sigma
+    input_max_value_gauss = max_data_index / hist_len * 128 - 128
+    #print((input_max_value_gauss, input_max_values[ch]))
 
     for i in range(len(x)):
       hist_models[ch][start_index + i] = func(i, popt[0], popt[1], popt[2])
   except:
     pass
-
+  return input_max_value_gauss
 
 
 
