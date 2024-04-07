@@ -75,7 +75,7 @@ busses_pan_dict = { \
   2:[0, 0, -30, 60, -94, 44, -100,  32, -40, 0, 0,   0,  0, -46, -100, 100], \
   4:[0, 0,  20, 42, -50,  0, -100, 100,  40, 0, 0, -18, 18,   0, -100, 100]}
 
-use_recorded_data     = False # TEST
+use_recorded_data     = True # TEST
 target_max_gain       = -15 # dB
 set_gain_input_thresh = -40 # dB
 no_input_threshold    = -80 # dB
@@ -359,15 +359,17 @@ def analyze_histogram(ch):
   try:
     (popt, pcov) = curve_fit(func, range(len(x)), x)
 
-    # TEST: 3 times sigma is approx. 99.7 % probability
-    #       2 times sigma is approx. 95.5 % probability
-    # max_data_index = start_index + popt[2] + 3 * abs(popt[1]) # 3 times sigma
-    max_data_index = start_index + popt[2] + 2 * abs(popt[1]) # 2 times sigma
-    input_max_value_gauss = max_data_index / hist_len * 128 - 128
-    #print((input_max_value_gauss, input_max_values[ch]))
+    # if sigma is too large, signal distribution seems not to be Gaussian
+    if abs(popt[1]) > 1.5 and abs(popt[1]) < 4.5:
+      # TEST: 3 times sigma is approx. 99.7 % probability
+      #       2 times sigma is approx. 95.5 % probability
+      # max_data_index = start_index + popt[2] + 3 * abs(popt[1]) # 3 times sigma
+      max_data_index = start_index + popt[2] + 2 * abs(popt[1]) # 2 times sigma
+      input_max_value_gauss = max_data_index / hist_len * 128 - 128
+      #print((input_max_value_gauss, input_max_values[ch]))
 
-    for i in range(len(x)):
-      hist_models[ch][start_index + i] = func(i, popt[0], popt[1], popt[2])
+      for i in range(len(x)):
+        hist_models[ch][start_index + i] = func(i, popt[0], popt[1], popt[2])
   except:
     pass
   return input_max_value_gauss
@@ -483,7 +485,7 @@ def gui_thread():
         rta.create_line(x, rta_hist_height, x, rta_hist_height - y, fill="#476042", width=rta_line_width)
 
       # TEST
-      analyze_histogram(channel)
+      input_max_value_gauss = analyze_histogram(channel)
 
 
       max_hist  = max(input_histograms[channel])
@@ -497,12 +499,13 @@ def gui_thread():
           hist.create_line(x, rta_hist_height, x, rta_hist_height - y, fill=color, width=hist_line_width)
 
         # TEST
-        for i in range(len(hist_models[channel])):
-          if max(hist_models[channel]) > 0:
-            x = hist_line_width + i * hist_line_width + i
-            y = hist_models[channel][i] * rta_hist_height / max(hist_models[channel])
-            #print(y)
-            hist.create_line(x, rta_hist_height, x, rta_hist_height - y, fill="red", width=2)
+        if input_max_value_gauss != 0:
+          for i in range(len(hist_models[channel])):
+            if max(hist_models[channel]) > 0:
+              x = hist_line_width + i * hist_line_width + i
+              y = hist_models[channel][i] * rta_hist_height / max(hist_models[channel])
+              #print(y)
+              hist.create_line(x, rta_hist_height, x, rta_hist_height - y, fill="red", width=2)
 
 
       if int(channel_sel.get()) - 1 is not channel:
