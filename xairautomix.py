@@ -359,8 +359,8 @@ def analyze_histogram(ch):
   try:
     (popt, pcov) = curve_fit(func, range(len(x)), x)
 
-    # if sigma is too large, signal distribution seems not to be Gaussian
-    if abs(popt[1]) > 1.5 and abs(popt[1]) < 4.5:
+    # covariance of b parameter is a good metric for distribution matching
+    if pcov[1][1] < 0.5:
       # TEST: 3 times sigma is approx. 99.7 % probability
       #       2 times sigma is approx. 95.5 % probability
       # max_data_index = start_index + popt[2] + 3 * abs(popt[1]) # 3 times sigma
