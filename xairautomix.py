@@ -37,6 +37,7 @@ import matplotlib.pyplot as plt # TODO somehow needed for "messagebox.askyesno"?
 import tkinter as tk
 from tkinter import ttk
 from scipy.optimize import curve_fit
+import scipy.stats as stats
 
 # mixer channel setup, channel_dict: [name, fader, gain, HP, group, special]
 special = [0]
@@ -337,8 +338,12 @@ def reset_histograms():
 
 
 # TEST
-def func(x, a, b, c):
-  return a * numpy.exp(-numpy.square((x - c) / b))
+#def func(x, a, b, c):
+#  return a * numpy.exp(-numpy.square((x - c) / b))
+def func(x, a):
+  print(x)
+  print(stats.chi2.pdf(x, df=a))
+  return stats.chi2.pdf(x, df=a)
 
 def analyze_histogram(ch):
   global hist_models
@@ -356,22 +361,23 @@ def analyze_histogram(ch):
     start_index = max(0, max_index - num_left_right)
     x           = input_histograms[ch][start_index:min(len(input_histograms[ch]) - 1, max_index + num_left_right)]
 
-  try:
+  #try:
     (popt, pcov) = curve_fit(func, range(len(x)), x)
+    print(pcov)
 
-    # covariance of b parameter is a good metric for distribution matching
-    if pcov[1][1] < 0.5:
-      # TEST: 3 times sigma is approx. 99.7 % probability
-      #       2 times sigma is approx. 95.5 % probability
-      # max_data_index = start_index + popt[2] + 3 * abs(popt[1]) # 3 times sigma
-      max_data_index = start_index + popt[2] + 2 * abs(popt[1]) # 2 times sigma
-      input_max_value_gauss = max_data_index / hist_len * 128 - 128
-      #print((input_max_value_gauss, input_max_values[ch]))
-
-      for i in range(len(x)):
-        hist_models[ch][start_index + i] = func(i, popt[0], popt[1], popt[2])
-  except:
-    pass
+    ## covariance of b parameter is a good metric for distribution matching
+    #if pcov[1][1] < 0.5:
+    #  # TEST: 3 times sigma is approx. 99.7 % probability
+    #  #       2 times sigma is approx. 95.5 % probability
+    #  # max_data_index = start_index + popt[2] + 3 * abs(popt[1]) # 3 times sigma
+    #  max_data_index = start_index + popt[2] + 2 * abs(popt[1]) # 2 times sigma
+    #  input_max_value_gauss = max_data_index / hist_len * 128 - 128
+    #  #print((input_max_value_gauss, input_max_values[ch]))
+    #
+    #  for i in range(len(x)):
+    #    hist_models[ch][start_index + i] = func(i, popt[0], popt[1], popt[2])
+  #except:
+  #  pass
   return input_max_value_gauss
 
 
@@ -520,7 +526,8 @@ def gui_thread():
 
       window.update()
       time.sleep(meter_update_s)
-    except:
+    except e:
+      print(e)
       exit_threads = True
 
 
