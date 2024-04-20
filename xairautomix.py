@@ -28,7 +28,7 @@
 # Behringer: vocal compression: ratio:3, attach: 10 ms, hold: 10 ms, release: 151 ms, gain: +6 dB, self filter: type: 3,
 #                               frequency 611 Hz
 
-import sys, threading, time, struct, numpy
+import sys, threading, time, struct, numpy, easygui
 sys.path.append('python-x32/src')
 sys.path.append('python-x32/src/pythonx32')
 from pythonx32 import x32
@@ -149,7 +149,7 @@ def set_gain(ch, x):
 
 
 def basic_setup_mixer(mixer):
-  if tk.messagebox.askyesno(message='Are you sure to reset all mixer settings?'):
+  if easygui.ynbox('Are you sure to reset all mixer settings?', 'Reset All Check', ['Yes', 'No']):
     try:
       mixer.set_value("/lr/mix/fader", [0]) # default: main LR fader to minimum
       for bus in range(6):
@@ -253,7 +253,7 @@ def basic_setup_mixer(mixer):
           if "LINK" in channel_dict[ch][6] and ch % 2 == 1:
             mixer.set_value(f"/config/chlink/{ch}-{ch + 1}", [1])
     except:
-      tk.messagebox.showerror(message='Reset failed!')
+      easygui.msgbox('Reset failed!')
 
 
 def configure_rta(channel):
