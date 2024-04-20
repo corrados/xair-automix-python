@@ -123,7 +123,7 @@ def apply_optimal_gains():
       if max_value > no_input_threshold:
         mixer.set_value(f"/ch/{ch + 1:#02}/mix/on", [1]) # unmute channel
         if max_value > set_gain_input_thresh:
-          set_gain(ch, get_gain(ch) - (max_value - target_max_gain))
+          set_gain(ch, float(get_gain(ch) - (max_value - target_max_gain)))
       else:
         mixer.set_value(f"/ch/{ch + 1:#02}/mix/on", [0]) # mute channel with no input level
   reset_histograms() # history needs to be reset on updated gain settings
