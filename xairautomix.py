@@ -116,16 +116,15 @@ def main():
   threading.Timer(0.0, gui_thread).start()
 
 
-def apply_optimal_gains():
+def apply_optimal_gain(ch):
   with data_mutex:
-    for ch in range(len(channel_dict)):
-      max_value = input_max_values[ch]
-      if max_value > no_input_threshold:
-        mixer.set_value(f"/ch/{ch + 1:#02}/mix/on", [1]) # unmute channel
-        if max_value > set_gain_input_thresh:
-          set_gain(ch, float(get_gain(ch) - (max_value - target_max_gain)))
-      else:
-        mixer.set_value(f"/ch/{ch + 1:#02}/mix/on", [0]) # mute channel with no input level
+    max_value = input_max_values[ch]
+    if max_value > no_input_threshold:
+      mixer.set_value(f"/ch/{ch + 1:#02}/mix/on", [1]) # unmute channel
+      if max_value > set_gain_input_thresh:
+        set_gain(ch, float(get_gain(ch) - (max_value - target_max_gain)))
+    else:
+      mixer.set_value(f"/ch/{ch + 1:#02}/mix/on", [0]) # mute channel with no input level
   reset_histograms() # history needs to be reset on updated gain settings
 
 
@@ -361,6 +360,11 @@ def change_channel(c):
   channel = int(c)
 
 
+def apply_optimal_gains():
+  for ch in range(len(channel_dict)):
+    apply_optimal_gain(ch)
+
+
 def gui_thread():
   global exit_threads, channel
   window = tk.Tk(className="XR Auto Mix")
@@ -374,7 +378,8 @@ def gui_thread():
 
   # buttons
   tk.Button(buttons_f, text="Reset Histograms", command=lambda: reset_histograms()).pack(side='left')
-  tk.Button(buttons_f, text="Apply Gains", command=lambda: apply_optimal_gains()).pack(side='left')
+  tk.Button(buttons_f, text="Apply All Gains", command=lambda: apply_optimal_gains()).pack(side='left')
+  tk.Button(buttons_f, text="Apply Selected Gain", command=lambda: apply_optimal_gain(channel)).pack(side='left')
   b_feedback = tk.Button(buttons_f, text="Feedback Cancellation", command=lambda: switch_feedback_cancellation())
   b_feedback.pack(side='left')
   tk.Button(buttons_f, text="Reset All", command=lambda: basic_setup_mixer(mixer)).pack(side='left')
