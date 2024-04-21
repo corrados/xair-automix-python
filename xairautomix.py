@@ -116,7 +116,7 @@ def main():
   threading.Timer(0.0, gui_thread).start()
 
 
-def apply_optimal_gain(ch):
+def apply_optimal_gain(ch, reset=True):
   with data_mutex:
     max_value = input_max_values[ch]
     if max_value > no_input_threshold:
@@ -125,7 +125,8 @@ def apply_optimal_gain(ch):
         set_gain(ch, float(get_gain(ch) - (max_value - target_max_gain)))
     else:
       mixer.set_value(f"/ch/{ch + 1:#02}/mix/on", [0]) # mute channel with no input level
-  reset_histograms() # history needs to be reset on updated gain settings
+  if reset:
+    reset_histograms() # history needs to be reset on updated gain settings
 
 
 def get_gain(ch):
@@ -362,7 +363,8 @@ def change_channel(c):
 
 def apply_optimal_gains():
   for ch in range(len(channel_dict)):
-    apply_optimal_gain(ch)
+    apply_optimal_gain(ch, reset=False)
+  reset_histograms() # history needs to be reset on updated gain settings
 
 
 def gui_thread():
