@@ -82,7 +82,7 @@ no_input_threshold    = -80 # dB
 dyn_thresh            = target_max_gain - 6 - 10 # target -6 dB reduction minus additional "magic number"
 feedback_threshold_dB = 30
 
-channel              = -1   # initialize with invalid channel
+channel              = 0    # initialization value for channel selection
 len_meter2           = 18   # ALL INPUTS (16 mic, 2 aux, 18 usb = 36 values total but we only need the mic inputs)
 len_meter4           = 100  # RTA100 (100 bins RTA = 100 values)
 len_meter6           = 16   # ALL DYN (16 gate, 16 dyn(ch), 6 dyn(bus), dyn(lr) = 39 values total but we want 16 dyn only)
@@ -356,45 +356,45 @@ def detect_and_cancel_feedback():
       feedback_count = [0 for x in feedback_count] # clear all counts
 
 
+def change_channel(c):
+  global channel
+  channel = int(c)
+
+
 def gui_thread():
   global exit_threads, channel
   window = tk.Tk(className="XR Auto Mix")
   window_color = window.cget("bg")
   (input_bars, input_labels, dyn_labels, rta_bars) = ([], [], [], [])
+  radio_button_var = tk.StringVar(window, channel)
   (buttons_f, inputs_f, selection_f) = (tk.Frame(window), tk.Frame(window), tk.Frame(window))
   buttons_f.pack()
   inputs_f.pack()
   selection_f.pack()
 
   # buttons
-  tk.Button(buttons_f, text="Reset Histograms",command=lambda: reset_histograms()).pack(side='left')
-  tk.Button(buttons_f, text="Apply Gains",command=lambda: apply_optimal_gains()).pack(side='left')
-  b_feedback = tk.Button(buttons_f, text="Feedback Cancellation",command=lambda: switch_feedback_cancellation())
+  tk.Button(buttons_f, text="Reset Histograms", command=lambda: reset_histograms()).pack(side='left')
+  tk.Button(buttons_f, text="Apply Gains", command=lambda: apply_optimal_gains()).pack(side='left')
+  b_feedback = tk.Button(buttons_f, text="Feedback Cancellation", command=lambda: switch_feedback_cancellation())
   b_feedback.pack(side='left')
-  tk.Button(buttons_f, text="Reset All",command=lambda: basic_setup_mixer(mixer)).pack(side='left')
+  tk.Button(buttons_f, text="Reset All", command=lambda: basic_setup_mixer(mixer)).pack(side='left')
 
   # input level meters
   for i in range(len_meter2):
     f = tk.Frame(inputs_f)
     f.pack(side="left", pady='5')
     if i < len(channel_dict):
-      tk.Label(f, text=f"L{i + 1:^2}\n{channel_dict[i][0]} |").pack()
+      tk.Radiobutton(f, value=i, indicatoron=0, variable=radio_button_var, \
+        command=lambda: change_channel(radio_button_var.get()), text=f"{i + 1}\n{channel_dict[i][0]}").pack()
     else:
-      tk.Label(f, text=f"L{i + 1:^2}\n").pack()
+      tk.Radiobutton(f, value=i, indicatoron=0, variable=radio_button_var, \
+        command=lambda: change_channel(radio_button_var.get()), text=f"{i + 1}\n").pack()
     input_bars.append(tk.DoubleVar(window))
     ttk.Progressbar(f, orient=tk.VERTICAL, variable=input_bars[i]).pack()
     input_labels.append(tk.Label(f))
     input_labels[i].pack()
     dyn_labels.append(tk.Label(f))
     dyn_labels[i].pack()
-
-  # channel selection
-  tk.Label(selection_f, text="Channel Selection:").pack(side='left')
-  channel_sel = ttk.Combobox(selection_f)
-  channel_sel['values'] = [f"{x}" for x in range(1, len_meter2 + 1)]
-  channel_sel.current(13)#0)
-  channel_sel.pack(side='left')
-  tk.Label(selection_f, text="Histogram Input:").pack(side='left')
 
   # RTA/histogram
   rta = tk.Canvas(window, width=len_meter4 * rta_line_width + len_meter4, height=rta_hist_height)
@@ -442,10 +442,6 @@ def gui_thread():
           y = input_histograms[channel][i] * rta_hist_height / max_hist
           color = "blue" if i == max_index else "#476042"
           hist.create_line(x, rta_hist_height, x, rta_hist_height - y, fill=color, width=hist_line_width)
-
-      if int(channel_sel.get()) - 1 is not channel:
-        channel = int(channel_sel.get()) - 1
-        #configure_rta(channel) # configure_rta(31) # 31: MainLR on XAIR16
 
       if do_feedback_cancel:
         b_feedback.config(bg="red")
