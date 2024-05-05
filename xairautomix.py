@@ -77,7 +77,7 @@ busses_pan_dict = { \
 
 use_recorded_data     = False # TEST
 target_max_gain       = -15 # dB
-set_gain_input_thresh = -40 # dB
+set_gain_input_thresh = -50 # dB
 no_input_threshold    = -80 # dB
 dyn_thresh            = target_max_gain - 6 - 10 # target -6 dB reduction minus additional "magic number"
 feedback_threshold_dB = 30
@@ -124,7 +124,8 @@ def apply_optimal_gain(ch, reset=True):
       if max_value > set_gain_input_thresh:
         set_gain(ch, float(get_gain(ch) - (max_value - target_max_gain)))
     else:
-      mixer.set_value(f"/ch/{ch + 1:#02}/mix/on", [0]) # mute channel with no input level
+      pass # disabled mute for now
+      #mixer.set_value(f"/ch/{ch + 1:#02}/mix/on", [0]) # mute channel with no input level
   if reset:
     reset_histograms() # history needs to be reset on updated gain settings
 
