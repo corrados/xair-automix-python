@@ -127,7 +127,7 @@ def apply_optimal_gain(ch, reset=True):
       pass # disabled mute for now
       #mixer.set_value(f"/ch/{ch + 1:#02}/mix/on", [0]) # mute channel with no input level
   if reset:
-    reset_histograms() # history needs to be reset on updated gain settings
+    reset_histograms(ch) # history needs to be reset on updated gain settings
 
 
 def get_gain(ch):
@@ -318,12 +318,17 @@ def calc_histograms(values, histograms):
   for i in range(len(values)):
     histograms[i][min(127, round((values[i] + 128) / 128 * hist_len))] += 1
 
-def reset_histograms():
+def reset_histograms(ch = []):
   global input_histograms, input_max_values, gatedyn_min_values
   with data_mutex:
-    input_histograms   = [[0] * hist_len for i in range(len_meter2)]
-    input_max_values   = [-128] * len_meter2
-    gatedyn_min_values = [0] * len_meter6
+    if ch:
+      input_histograms[ch]   = [0] * hist_len
+      input_max_values[ch]   = -128
+      gatedyn_min_values[ch] = 0
+    else:
+      input_histograms   = [[0] * hist_len for i in range(len_meter2)]
+      input_max_values   = [-128] * len_meter2
+      gatedyn_min_values = [0] * len_meter6
 
 
 def switch_feedback_cancellation():
