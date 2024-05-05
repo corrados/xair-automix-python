@@ -437,8 +437,10 @@ def gui_thread():
         else:
           if max_value > 6:
             dyn_labels[ch].config(text=max_value, bg="yellow")
-          elif max_value > 0: # do not show any number if dyn is not used
+          elif max_value > 0:
             dyn_labels[ch].config(text=max_value, bg=window_color)
+          else: # do not show any number if dyn is not used
+            dyn_labels[ch].config(text="", bg=window_color)
 
       rta.delete("all")
       for i in range(len_meter4):
